@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:rick_spot/widgets/bottom_player.dart';
 import 'package:rick_spot/widgets/searchbar.dart';
+import 'package:rick_spot/widgets/sheet_player.dart';
 
 void main() {
   runApp(const MyApp());
