@@ -98,32 +98,18 @@ class _BottomPlayerState extends State<BottomPlayer> {
                 useSafeArea: true,
                 barrierColor: Color(0xFF7F1D1D), // red-900
                 builder: (BuildContext context) {
-                  return Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0xFF7F1D1D), // red-900
-                          Color(0xFF991B1B), // red-800
-                          Color(0xFF7F1D1D), // red-900
-                        ],
-                      ),
-                    ),
-                    child: SheetPlayer(),
-                  );
+                  return SheetPlayer();
                 },
               );
             },
             onPanUpdate: (details) {
-              // Swiping in the vertical direction
               if (details.delta.dy < -20) {
-                // User is swiping from down to up
                 print("Swipe up detected");
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true, // allow full height
-
+                  useSafeArea: true,
+                  barrierColor: Color(0xFF7F1D1D), // red-900
                   builder: (BuildContext context) {
                     return SheetPlayer();
                   },

@@ -94,193 +94,227 @@ class _SheetPlayerState extends State<SheetPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: SvgPicture.asset(
-                  'assets/icons/chevron_down.svg',
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF7F1D1D), // red-900
+            Color(0xFF991B1B), // red-800
+            Color(0xFF7F1D1D), // red-900
+          ],
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: SvgPicture.asset(
+                    'assets/icons/chevron_down.svg',
+                    color: Colors.white,
+                  ),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Blood Sugar Sex Magik (Deluxe Edition)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      letterSpacing: -0.2,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                SvgPicture.asset(
+                  'assets/icons/more_options.svg',
                   color: Colors.white,
                 ),
-              ),
-              const Expanded(
-                child: Text(
-                  'Blood Sugar Sex Magik (Deluxe Edition)',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              SvgPicture.asset(
-                'assets/icons/more_options.svg',
-                color: Colors.white,
-              ),
-            ],
-          ),
-        ),
-
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Image.network(
-              'https://i.scdn.co/image/ab67616d0000b27394d08ab63e57b0cae74e8595',
+              ],
             ),
           ),
-        ),
 
-        // Song Info
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Under the Bridge',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Red Hot Chili Peppers',
-                      style: TextStyle(color: Colors.grey[300], fontSize: 18),
-                    ),
-                  ],
-                ),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Image.network(
+                'https://i.scdn.co/image/ab67616d0000b27394d08ab63e57b0cae74e8595',
               ),
-              GestureDetector(
-                onTap: _toggleLike,
-                child: SvgPicture.asset(
-                  'assets/icons/${isLiked ? 'fill_heart.svg' : 'empty_heart.svg'}',
-                  color: isLiked ? Color(0xff1BD760) : Color(0x8affffff),
-                  height: 32,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
 
-        // Progress Bar
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-          child: Column(
-            children: [
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: Colors.white,
-                  inactiveTrackColor: Color(0x64ffffff),
-                  thumbColor: Colors.white,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 6,
-                  ),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 12,
-                  ),
-                  trackHeight: 4,
-                ),
-                child: Slider(
-                  value: currentTime,
-                  max: duration,
-                  onChanged: _onSliderChanged,
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _formatTime(currentTime),
-                      style: TextStyle(color: Color(0xddffffff), fontSize: 12),
-                    ),
-                    Text(
-                      _formatTime(duration),
-                      style: TextStyle(color: Color(0xaaffffff), fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Controls
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: _toggleShuffle,
-                child: Icon(
-                  Icons.shuffle,
-                  color: isShuffled ? Colors.green : Colors.grey[400],
-                  size: 24,
-                ),
-              ),
-              const Icon(Icons.skip_previous, color: Colors.white, size: 40),
-              GestureDetector(
-                onTap: _togglePlayPause,
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isPlaying ? Icons.pause : Icons.play_arrow,
-                    color: Colors.black,
-                    size: 32,
-                  ),
-                ),
-              ),
-              const Icon(Icons.skip_next, color: Colors.white, size: 40),
-              GestureDetector(
-                onTap: _toggleRepeat,
-                child: Stack(
-                  children: [
-                    Icon(
-                      Icons.repeat,
-                      color: repeatMode > 0 ? Colors.green : Colors.grey[400],
-                      size: 24,
-                    ),
-                    if (repeatMode == 2)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                          ),
+          // Song Info
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 32.0,
+              vertical: 16.0,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Under the Bridge',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                  ],
+                      Text(
+                        'Red Hot Chili Peppers',
+                        style: TextStyle(color: Colors.grey[300], fontSize: 18),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                GestureDetector(
+                  onTap: _toggleLike,
+                  child: SvgPicture.asset(
+                    'assets/icons/${isLiked ? 'fill_heart.svg' : 'empty_heart.svg'}',
+                    color: isLiked ? Color(0xff1BD760) : Color(0x8affffff),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        Gap(64),
-      ],
+
+          // Progress Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 8.0,
+            ),
+            child: Column(
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: Colors.white,
+                    inactiveTrackColor: Color(0x64ffffff),
+                    thumbColor: Colors.white,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 6,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 12,
+                    ),
+                    trackHeight: 4,
+                  ),
+                  child: Slider(
+                    value: currentTime,
+                    max: duration,
+                    onChanged: _onSliderChanged,
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _formatTime(currentTime),
+                        style: TextStyle(
+                          color: Color(0xddffffff),
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        _formatTime(duration),
+                        style: TextStyle(
+                          color: Color(0xaaffffff),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Controls
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: _toggleShuffle,
+                  child: SvgPicture.asset(
+                    'assets/icons/shuffle.svg',
+                    color: isShuffled ? Color(0xff1BD760) : Color(0x8affffff),
+                  ),
+                ),
+                SvgPicture.asset(
+                  'assets/icons/previous.svg',
+                  color: Color(0x8affffff),
+                  height: 32,
+                ),
+                GestureDetector(
+                  onTap: _togglePlayPause,
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: Colors.black,
+                      size: 32,
+                    ),
+                  ),
+                ),
+                SvgPicture.asset(
+                  'assets/icons/forward.svg',
+                  color: Colors.white,
+                  height: 32,
+                ),
+                GestureDetector(
+                  onTap: _toggleRepeat,
+                  child: Stack(
+                    children: [
+                      SvgPicture.asset(
+                        'assets/icons/repeat.svg',
+                        color:
+                            repeatMode > 0
+                                ? Color(0xff1BD760)
+                                : Colors.grey[400],
+                      ),
+                      if (repeatMode == 2)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Gap(64),
+        ],
+      ),
     );
   }
 }
