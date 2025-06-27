@@ -291,7 +291,7 @@ class _SheetPlayerState extends State<SheetPlayer> {
                         color:
                             repeatMode > 0
                                 ? Color(0xff1BD760)
-                                : Colors.grey[400],
+                                : Color(0x8affffff),
                       ),
                       if (repeatMode == 2)
                         Positioned(
