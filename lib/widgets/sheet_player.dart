@@ -316,21 +316,6 @@ class _SheetPlayerState extends State<SheetPlayer> {
                   ],
                 ),
               ),
-
-              // Bottom Actions
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32.0,
-                  vertical: 0.0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Icon(Icons.cast, color: Colors.grey[400], size: 24),
-                    Icon(Icons.share, color: Colors.grey[400], size: 24),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
