@@ -109,6 +109,7 @@ class _SheetPlayerState extends State<SheetPlayer> {
       child: Column(
         children: [
           // Header
+          Gap(12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -170,11 +171,16 @@ class _SheetPlayerState extends State<SheetPlayer> {
                           color: Colors.white,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
+                          letterSpacing: -0.2,
                         ),
                       ),
                       Text(
                         'Red Hot Chili Peppers',
-                        style: TextStyle(color: Colors.grey[300], fontSize: 18),
+                        style: TextStyle(
+                          color: Colors.grey[300],
+                          fontSize: 18,
+                          letterSpacing: -0.2,
+                        ),
                       ),
                     ],
                   ),
@@ -194,7 +200,7 @@ class _SheetPlayerState extends State<SheetPlayer> {
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 24.0,
-              vertical: 8.0,
+              vertical: 16.0,
             ),
             child: Column(
               children: [
