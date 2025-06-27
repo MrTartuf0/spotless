@@ -1,0 +1,35 @@
+name: rick_spot
+description: "spotify replica for my pookie"
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  gap: ^3.0.1
+  flutter_svg: ^2.2.0
+  dio: ^5.8.0+1
+  palette_generator: ^0.3.3+7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: SpotifyMixUI
+      fonts:
+        - asset: assets/fonts/SpotifyMixUI-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/SpotifyMixUI-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/SpotifyMixUITitleVariable.ttf
+          weight: 600
+  assets:
+    - assets/icons/
+
