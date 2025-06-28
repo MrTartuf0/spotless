@@ -1,6 +1,7 @@
 // lib/providers/audio_player_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:rick_spot/repositories/track_repository.dart';
 
 // Audio Player State Model
 class AudioPlayerState {
@@ -12,6 +13,8 @@ class AudioPlayerState {
   final String currentTrackArtist;
   final String currentTrackImage;
   final String currentStreamUrl;
+  final String currentAlbumName;
+  final String currentTrackId;
   final bool isLiked;
   final bool isShuffled;
   final int repeatMode; // 0: off, 1: all, 2: one
@@ -27,6 +30,8 @@ class AudioPlayerState {
         'https://i.scdn.co/image/ab67616d00001e0209fd83d32aee93dceba78517',
     this.currentStreamUrl =
         'https://spc.rickyscloud.com/hls/94599360893856627734266258834711005588.m3u8',
+    this.currentAlbumName = 'Blood Sugar Sex Magik (Deluxe Edition)',
+    this.currentTrackId = '3d9DChrdc6BOeFsbrZ3Is0',
     this.isLiked = true,
     this.isShuffled = false,
     this.repeatMode = 0,
@@ -41,6 +46,8 @@ class AudioPlayerState {
     String? currentTrackArtist,
     String? currentTrackImage,
     String? currentStreamUrl,
+    String? currentAlbumName,
+    String? currentTrackId,
     bool? isLiked,
     bool? isShuffled,
     int? repeatMode,
@@ -54,6 +61,8 @@ class AudioPlayerState {
       currentTrackArtist: currentTrackArtist ?? this.currentTrackArtist,
       currentTrackImage: currentTrackImage ?? this.currentTrackImage,
       currentStreamUrl: currentStreamUrl ?? this.currentStreamUrl,
+      currentAlbumName: currentAlbumName ?? this.currentAlbumName,
+      currentTrackId: currentTrackId ?? this.currentTrackId,
       isLiked: isLiked ?? this.isLiked,
       isShuffled: isShuffled ?? this.isShuffled,
       repeatMode: repeatMode ?? this.repeatMode,
@@ -71,9 +80,12 @@ class AudioPlayerState {
 // Audio Player Notifier
 class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   late AudioPlayer _audioPlayer;
+  final TrackRepository _trackRepository;
 
-  AudioPlayerNotifier() : super(const AudioPlayerState()) {
+  AudioPlayerNotifier(this._trackRepository) : super(const AudioPlayerState()) {
     _initializeAudioPlayer();
+    // Load the default track data when initialized
+    loadTrack(state.currentTrackId);
   }
 
   void _initializeAudioPlayer() {
@@ -83,7 +95,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     _audioPlayer.onPlayerStateChanged.listen((PlayerState playerState) {
       state = state.copyWith(
         isPlaying: playerState == PlayerState.playing,
-        isLoading: false,
+        isLoading: playerState == PlayerState.playing ? false : state.isLoading,
       );
     });
 
@@ -97,15 +109,58 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       state = state.copyWith(totalDuration: duration);
     });
 
-    // Auto-start playing the HLS stream
-    playStream();
+    // Listen to completion
+    _audioPlayer.onPlayerComplete.listen((_) {
+      state = state.copyWith(isPlaying: false, currentPosition: Duration.zero);
+    });
+  }
+
+  // Update only the loadTrack method in the AudioPlayerNotifier class
+  Future<void> loadTrack(String trackId) async {
+    try {
+      state = state.copyWith(isLoading: true);
+
+      // Get track data
+      final trackData = await _trackRepository.getTrack(trackId);
+
+      // Get the correct stream URL for this track
+      final streamUrl = await _trackRepository.getStreamUrl(trackId);
+
+      // Extract needed information from track data
+      final artist = trackData['artists'][0]['name'] as String;
+      final title = trackData['name'] as String;
+      final imageUrl = trackData['album']['images'][0]['url'] as String;
+      final albumName = trackData['album']['name'] as String;
+      final durationMs = trackData['duration_ms'] as int;
+
+      // Update the state with the track data and correct stream URL
+      state = state.copyWith(
+        currentTrackId: trackId,
+        currentTrackTitle: title,
+        currentTrackArtist: artist,
+        currentTrackImage: imageUrl,
+        currentAlbumName: albumName,
+        totalDuration: Duration(milliseconds: durationMs),
+        currentStreamUrl: streamUrl,
+      );
+
+      // Start playing the track with the correct stream URL
+      await playStream();
+    } catch (e) {
+      print('Error loading track: $e');
+      state = state.copyWith(isLoading: false);
+    }
   }
 
   Future<void> playStream() async {
     try {
       state = state.copyWith(isLoading: true);
+
+      // Stop any currently playing audio
+      await _audioPlayer.stop();
+
+      // Play the new stream
       await _audioPlayer.play(UrlSource(state.currentStreamUrl));
-      state = state.copyWith(isLoading: false);
     } catch (e) {
       print('Error playing HLS stream: $e');
       state = state.copyWith(isLoading: false);
@@ -152,24 +207,6 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     state = state.copyWith(repeatMode: (state.repeatMode + 1) % 3);
   }
 
-  void updateTrack({
-    required String title,
-    required String artist,
-    required String imageUrl,
-    String? streamUrl,
-  }) {
-    state = state.copyWith(
-      currentTrackTitle: title,
-      currentTrackArtist: artist,
-      currentTrackImage: imageUrl,
-      currentStreamUrl: streamUrl ?? state.currentStreamUrl,
-    );
-
-    if (streamUrl != null) {
-      playStream();
-    }
-  }
-
   String formatTime(Duration duration) {
     int mins = duration.inMinutes;
     int secs = duration.inSeconds % 60;
@@ -186,5 +223,11 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 // Provider
 final audioPlayerProvider =
     StateNotifierProvider<AudioPlayerNotifier, AudioPlayerState>((ref) {
-      return AudioPlayerNotifier();
+      final trackRepository = ref.watch(trackRepositoryProvider);
+      return AudioPlayerNotifier(trackRepository);
     });
+
+// Current track ID provider
+final currentTrackIdProvider = StateProvider<String>((ref) {
+  return '3d9DChrdc6BOeFsbrZ3Is0'; // Default track ID
+});

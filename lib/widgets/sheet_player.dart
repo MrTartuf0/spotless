@@ -40,10 +40,10 @@ class SheetPlayer extends ConsumerWidget {
                     color: Colors.white,
                   ),
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Blood Sugar Sex Magik (Deluxe Edition)',
-                    style: TextStyle(
+                    audioState.currentAlbumName,
+                    style: const TextStyle(
                       color: Colors.white,
                       letterSpacing: -0.2,
                       fontSize: 14,

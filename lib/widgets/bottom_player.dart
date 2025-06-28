@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:rick_spot/services/color_extractor.dart';
 import 'package:rick_spot/widgets/sheet_player.dart';
 import 'package:rick_spot/providers/audio_player_provider.dart';
+import 'package:rick_spot/providers/track_provider.dart';
 
 class BottomPlayer extends ConsumerStatefulWidget {
   const BottomPlayer({super.key});
@@ -21,6 +22,14 @@ class _BottomPlayerState extends ConsumerState<BottomPlayer> {
   @override
   void initState() {
     super.initState();
+    _extractColorFromCurrentTrack();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Listen to track changes
+    final audioState = ref.watch(audioPlayerProvider);
     _extractColorFromCurrentTrack();
   }
 
@@ -79,6 +88,9 @@ class _BottomPlayerState extends ConsumerState<BottomPlayer> {
   Widget build(BuildContext context) {
     final audioState = ref.watch(audioPlayerProvider);
     final audioNotifier = ref.read(audioPlayerProvider.notifier);
+
+    // Load a specific track when needed
+    // Example: ref.read(trackLoadingProvider('3d9DChrdc6BOeFsbrZ3Is0'));
 
     return Positioned(
       bottom: 0,
@@ -165,12 +177,15 @@ class _BottomPlayerState extends ConsumerState<BottomPlayer> {
                             ],
                           ),
                         ),
-                        SvgPicture.asset(
-                          'assets/icons/fill_heart.svg',
-                          color:
-                              audioState.isLiked
-                                  ? const Color(0xff1BD760)
-                                  : const Color(0x8affffff),
+                        GestureDetector(
+                          onTap: () => audioNotifier.toggleLike(),
+                          child: SvgPicture.asset(
+                            'assets/icons/fill_heart.svg',
+                            color:
+                                audioState.isLiked
+                                    ? const Color(0xff1BD760)
+                                    : const Color(0x8affffff),
+                          ),
                         ),
                         const Gap(24),
                         GestureDetector(
