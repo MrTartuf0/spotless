@@ -1,31 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:gap/gap.dart';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-import 'dart:async';
-import 'dart:math';
 
 import 'package:rick_spot/services/color_extractor.dart';
 import 'package:rick_spot/widgets/sheet_player.dart';
+import 'package:rick_spot/providers/audio_player_provider.dart';
 
-class BottomPlayer extends StatefulWidget {
+class BottomPlayer extends ConsumerStatefulWidget {
   const BottomPlayer({super.key});
 
   @override
-  State<BottomPlayer> createState() => _BottomPlayerState();
+  ConsumerState<BottomPlayer> createState() => _BottomPlayerState();
 }
 
-class _BottomPlayerState extends State<BottomPlayer> {
+class _BottomPlayerState extends ConsumerState<BottomPlayer> {
   Color containerColor = const Color(0xff424242); // Default color
   bool isLoadingColor = true;
-
-  // Current track data - you can make these dynamic later
-  final String currentTrackImage =
-      'https://i.scdn.co/image/ab67616d00001e0209fd83d32aee93dceba78517';
-  final String currentTrackTitle = 'Dani California';
-  final String currentTrackArtist = 'Red Hot Chili Peppers';
 
   @override
   void initState() {
@@ -34,9 +25,11 @@ class _BottomPlayerState extends State<BottomPlayer> {
   }
 
   Future<void> _extractColorFromCurrentTrack() async {
+    final audioState = ref.read(audioPlayerProvider);
+
     try {
       final Color extractedColor = await ColorExtractor.extractDominantColor(
-        NetworkImage(currentTrackImage),
+        NetworkImage(audioState.currentTrackImage),
       );
 
       if (mounted) {
@@ -84,6 +77,9 @@ class _BottomPlayerState extends State<BottomPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    final audioState = ref.watch(audioPlayerProvider);
+    final audioNotifier = ref.read(audioPlayerProvider.notifier);
+
     return Positioned(
       bottom: 0,
       left: 0,
@@ -134,7 +130,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(4.0),
                           child: Image.network(
-                            currentTrackImage,
+                            audioState.currentTrackImage,
                             height: 40,
                             width: 40,
                             fit: BoxFit.cover,
@@ -147,7 +143,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                currentTrackTitle,
+                                audioState.currentTrackTitle,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
@@ -158,7 +154,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                               ),
                               Gap(4),
                               Text(
-                                currentTrackArtist,
+                                audioState.currentTrackArtist,
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 14,
@@ -171,12 +167,32 @@ class _BottomPlayerState extends State<BottomPlayer> {
                         ),
                         SvgPicture.asset(
                           'assets/icons/fill_heart.svg',
-                          color: const Color(0xff1BD760),
+                          color:
+                              audioState.isLiked
+                                  ? const Color(0xff1BD760)
+                                  : const Color(0x8affffff),
                         ),
                         const Gap(24),
-                        SvgPicture.asset(
-                          'assets/icons/play.svg',
-                          color: Colors.white,
+                        GestureDetector(
+                          onTap: () => audioNotifier.togglePlayPause(),
+                          child:
+                              audioState.isLoading
+                                  ? SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                  : SvgPicture.asset(
+                                    audioState.isPlaying
+                                        ? 'assets/icons/pause.svg'
+                                        : 'assets/icons/play.svg',
+                                    color: Colors.white,
+                                  ),
                         ),
                         const Gap(8),
                       ],
@@ -201,7 +217,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
               // filled music track progress bar
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
-                widthFactor: 0.33, // 33% of parent width
+                widthFactor: audioState.progress,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,

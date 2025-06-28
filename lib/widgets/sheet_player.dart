@@ -1,99 +1,17 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:gap/gap.dart';
+import 'package:rick_spot/providers/audio_player_provider.dart';
 
-class SheetPlayer extends StatefulWidget {
+class SheetPlayer extends ConsumerWidget {
   const SheetPlayer({Key? key}) : super(key: key);
 
   @override
-  State<SheetPlayer> createState() => _SheetPlayerState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final audioState = ref.watch(audioPlayerProvider);
+    final audioNotifier = ref.read(audioPlayerProvider.notifier);
 
-class _SheetPlayerState extends State<SheetPlayer> {
-  bool isPlaying = false;
-  double currentTime = 15.0; // 0:15
-  double duration = 264.0; // 4:24
-  bool isLiked = true;
-  bool isShuffled = false;
-  int repeatMode = 0; // 0: off, 1: all, 2: one
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _togglePlayPause() {
-    setState(() {
-      isPlaying = !isPlaying;
-    });
-
-    if (isPlaying) {
-      _startTimer();
-    } else {
-      _stopTimer();
-    }
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (currentTime < duration) {
-        setState(() {
-          currentTime += 1;
-        });
-      } else {
-        _stopTimer();
-        setState(() {
-          isPlaying = false;
-        });
-      }
-    });
-  }
-
-  void _stopTimer() {
-    _timer?.cancel();
-  }
-
-  String _formatTime(double seconds) {
-    int mins = (seconds / 60).floor();
-    int secs = (seconds % 60).floor();
-    return '$mins:${secs.toString().padLeft(2, '0')}';
-  }
-
-  void _onSliderChanged(double value) {
-    setState(() {
-      currentTime = value;
-    });
-  }
-
-  void _toggleShuffle() {
-    setState(() {
-      isShuffled = !isShuffled;
-    });
-  }
-
-  void _toggleRepeat() {
-    setState(() {
-      repeatMode = (repeatMode + 1) % 3;
-    });
-  }
-
-  void _toggleLike() {
-    setState(() {
-      isLiked = !isLiked;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -145,9 +63,7 @@ class _SheetPlayerState extends State<SheetPlayer> {
           Expanded(
             child: Padding(
               padding: EdgeInsets.all(16),
-              child: Image.network(
-                'https://i.scdn.co/image/ab67616d0000b27394d08ab63e57b0cae74e8595',
-              ),
+              child: Image.network(audioState.currentTrackImage),
             ),
           ),
 
@@ -165,9 +81,9 @@ class _SheetPlayerState extends State<SheetPlayer> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Under the Bridge',
-                        style: TextStyle(
+                      Text(
+                        audioState.currentTrackTitle,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -175,7 +91,7 @@ class _SheetPlayerState extends State<SheetPlayer> {
                         ),
                       ),
                       Text(
-                        'Red Hot Chili Peppers',
+                        audioState.currentTrackArtist,
                         style: TextStyle(
                           color: Colors.grey[300],
                           fontSize: 18,
@@ -186,10 +102,13 @@ class _SheetPlayerState extends State<SheetPlayer> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: _toggleLike,
+                  onTap: () => audioNotifier.toggleLike(),
                   child: SvgPicture.asset(
-                    'assets/icons/${isLiked ? 'fill_heart.svg' : 'empty_heart.svg'}',
-                    color: isLiked ? Color(0xff1BD760) : Color(0x8affffff),
+                    'assets/icons/${audioState.isLiked ? 'fill_heart.svg' : 'empty_heart.svg'}',
+                    color:
+                        audioState.isLiked
+                            ? Color(0xff1BD760)
+                            : Color(0x8affffff),
                   ),
                 ),
               ],
@@ -218,9 +137,14 @@ class _SheetPlayerState extends State<SheetPlayer> {
                     trackHeight: 4,
                   ),
                   child: Slider(
-                    value: currentTime,
-                    max: duration,
-                    onChanged: _onSliderChanged,
+                    value: audioState.currentPosition.inSeconds.toDouble(),
+                    max: audioState.totalDuration.inSeconds.toDouble().clamp(
+                      1.0,
+                      double.infinity,
+                    ),
+                    onChanged: (value) {
+                      audioNotifier.seekTo(Duration(seconds: value.toInt()));
+                    },
                   ),
                 ),
                 Padding(
@@ -229,14 +153,14 @@ class _SheetPlayerState extends State<SheetPlayer> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _formatTime(currentTime),
+                        audioNotifier.formatTime(audioState.currentPosition),
                         style: TextStyle(
                           color: Color(0xddffffff),
                           fontSize: 12,
                         ),
                       ),
                       Text(
-                        _formatTime(duration),
+                        audioNotifier.formatTime(audioState.totalDuration),
                         style: TextStyle(
                           color: Color(0xaaffffff),
                           fontSize: 12,
@@ -256,10 +180,13 @@ class _SheetPlayerState extends State<SheetPlayer> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 GestureDetector(
-                  onTap: _toggleShuffle,
+                  onTap: () => audioNotifier.toggleShuffle(),
                   child: SvgPicture.asset(
                     'assets/icons/shuffle.svg',
-                    color: isShuffled ? Color(0xff1BD760) : Color(0x8affffff),
+                    color:
+                        audioState.isShuffled
+                            ? Color(0xff1BD760)
+                            : Color(0x8affffff),
                   ),
                 ),
                 SvgPicture.asset(
@@ -268,7 +195,7 @@ class _SheetPlayerState extends State<SheetPlayer> {
                   height: 32,
                 ),
                 GestureDetector(
-                  onTap: _togglePlayPause,
+                  onTap: () => audioNotifier.togglePlayPause(),
                   child: Container(
                     width: 56,
                     height: 56,
@@ -276,11 +203,24 @@ class _SheetPlayerState extends State<SheetPlayer> {
                       color: Colors.white,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      isPlaying ? Icons.pause : Icons.play_arrow,
-                      color: Colors.black,
-                      size: 32,
-                    ),
+                    child:
+                        audioState.isLoading
+                            ? Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.black,
+                                ),
+                              ),
+                            )
+                            : Icon(
+                              audioState.isPlaying
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                              color: Colors.black,
+                              size: 32,
+                            ),
                   ),
                 ),
                 SvgPicture.asset(
@@ -289,17 +229,17 @@ class _SheetPlayerState extends State<SheetPlayer> {
                   height: 32,
                 ),
                 GestureDetector(
-                  onTap: _toggleRepeat,
+                  onTap: () => audioNotifier.toggleRepeat(),
                   child: Stack(
                     children: [
                       SvgPicture.asset(
                         'assets/icons/repeat.svg',
                         color:
-                            repeatMode > 0
+                            audioState.repeatMode > 0
                                 ? Color(0xff1BD760)
                                 : Color(0x8affffff),
                       ),
-                      if (repeatMode == 2)
+                      if (audioState.repeatMode == 2)
                         Positioned(
                           right: 0,
                           top: 0,
