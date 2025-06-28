@@ -1,96 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 
-import 'package:rick_spot/services/color_extractor.dart';
 import 'package:rick_spot/widgets/sheet_player.dart';
 import 'package:rick_spot/providers/audio_player_provider.dart';
-import 'package:rick_spot/providers/track_provider.dart';
 
-class BottomPlayer extends ConsumerStatefulWidget {
+class BottomPlayer extends ConsumerWidget {
   const BottomPlayer({super.key});
 
   @override
-  ConsumerState<BottomPlayer> createState() => _BottomPlayerState();
-}
-
-class _BottomPlayerState extends ConsumerState<BottomPlayer> {
-  Color containerColor = const Color(0xff424242); // Default color
-  bool isLoadingColor = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _extractColorFromCurrentTrack();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Listen to track changes
-    final audioState = ref.watch(audioPlayerProvider);
-    _extractColorFromCurrentTrack();
-  }
-
-  Future<void> _extractColorFromCurrentTrack() async {
-    final audioState = ref.read(audioPlayerProvider);
-
-    try {
-      final Color extractedColor = await ColorExtractor.extractDominantColor(
-        NetworkImage(audioState.currentTrackImage),
-      );
-
-      if (mounted) {
-        setState(() {
-          containerColor = extractedColor;
-          isLoadingColor = false;
-        });
-      }
-    } catch (e) {
-      print('Error extracting color: $e');
-      if (mounted) {
-        setState(() {
-          isLoadingColor = false;
-        });
-      }
-    }
-  }
-
-  // Call this method when track changes
-  Future<void> updateTrack(String imageUrl, String title, String artist) async {
-    setState(() {
-      isLoadingColor = true;
-    });
-
-    try {
-      final Color extractedColor = await ColorExtractor.extractDominantColor(
-        NetworkImage(imageUrl),
-      );
-
-      if (mounted) {
-        setState(() {
-          containerColor = extractedColor;
-          isLoadingColor = false;
-        });
-      }
-    } catch (e) {
-      print('Error extracting color: $e');
-      if (mounted) {
-        setState(() {
-          isLoadingColor = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final audioState = ref.watch(audioPlayerProvider);
     final audioNotifier = ref.read(audioPlayerProvider.notifier);
-
-    // Load a specific track when needed
-    // Example: ref.read(trackLoadingProvider('3d9DChrdc6BOeFsbrZ3Is0'));
 
     return Positioned(
       bottom: 0,
@@ -104,7 +26,7 @@ class _BottomPlayerState extends ConsumerState<BottomPlayer> {
                 context: context,
                 isScrollControlled: true, // allow full height
                 useSafeArea: true,
-                barrierColor: Color(0xFF7F1D1D), // red-900
+                barrierColor: audioState.dominantColor, // Use extracted color
                 builder: (BuildContext context) {
                   return SheetPlayer();
                 },
@@ -117,7 +39,9 @@ class _BottomPlayerState extends ConsumerState<BottomPlayer> {
                   context: context,
                   isScrollControlled: true, // allow full height
                   useSafeArea: true,
-                  barrierColor: Color(0xFF7F1D1D), // red-900
+                  barrierColor: audioState.dominantColor.withOpacity(
+                    0.5,
+                  ), // Use extracted color
                   builder: (BuildContext context) {
                     return SheetPlayer();
                   },
@@ -132,7 +56,7 @@ class _BottomPlayerState extends ConsumerState<BottomPlayer> {
                   duration: const Duration(milliseconds: 600),
                   height: 56,
                   decoration: BoxDecoration(
-                    color: containerColor,
+                    color: audioState.dominantColor, // Use extracted color
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Padding(
@@ -169,8 +93,9 @@ class _BottomPlayerState extends ConsumerState<BottomPlayer> {
                                 audioState.currentTrackArtist,
                                 style: const TextStyle(
                                   color: Colors.white70,
-                                  fontSize: 14,
+                                  fontSize: 13,
                                   height: 1,
+                                  fontWeight: FontWeight.w600,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -180,7 +105,7 @@ class _BottomPlayerState extends ConsumerState<BottomPlayer> {
                         GestureDetector(
                           onTap: () => audioNotifier.toggleLike(),
                           child: SvgPicture.asset(
-                            'assets/icons/fill_heart.svg',
+                            'assets/icons/${audioState.isLiked ? 'fill_heart' : 'empty_heart'}.svg',
                             color:
                                 audioState.isLiked
                                     ? const Color(0xff1BD760)

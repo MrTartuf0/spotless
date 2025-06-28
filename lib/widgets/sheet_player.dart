@@ -13,14 +13,13 @@ class SheetPlayer extends ConsumerWidget {
     final audioNotifier = ref.read(audioPlayerProvider.notifier);
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF7F1D1D), // red-900
-            Color(0xFF991B1B), // red-800
-            Color(0xFF7F1D1D), // red-900
+            audioState.dominantColor, // Use extracted color
+            Colors.black, // Fade to black
           ],
         ),
       ),

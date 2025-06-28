@@ -1,7 +1,9 @@
 // lib/providers/audio_player_provider.dart
+import 'package:flutter/material.dart'; // Add this import for Color class
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:rick_spot/repositories/track_repository.dart';
+import 'package:rick_spot/services/color_extractor.dart';
 
 // Audio Player State Model
 class AudioPlayerState {
@@ -18,6 +20,8 @@ class AudioPlayerState {
   final bool isLiked;
   final bool isShuffled;
   final int repeatMode; // 0: off, 1: all, 2: one
+  final Color dominantColor; // Added this field for the dominant color
+  final bool isExtractingColor;
 
   const AudioPlayerState({
     this.isPlaying = false,
@@ -32,9 +36,11 @@ class AudioPlayerState {
         'https://spc.rickyscloud.com/hls/94599360893856627734266258834711005588.m3u8',
     this.currentAlbumName = 'Blood Sugar Sex Magik (Deluxe Edition)',
     this.currentTrackId = '3d9DChrdc6BOeFsbrZ3Is0',
-    this.isLiked = true,
+    this.isLiked = false,
     this.isShuffled = false,
     this.repeatMode = 0,
+    this.dominantColor = const Color(0xFF7F1D1D), // Default color
+    this.isExtractingColor = false,
   });
 
   AudioPlayerState copyWith({
@@ -51,6 +57,8 @@ class AudioPlayerState {
     bool? isLiked,
     bool? isShuffled,
     int? repeatMode,
+    Color? dominantColor, // Add this parameter
+    bool? isExtractingColor, // Add this parameter
   }) {
     return AudioPlayerState(
       isPlaying: isPlaying ?? this.isPlaying,
@@ -66,6 +74,9 @@ class AudioPlayerState {
       isLiked: isLiked ?? this.isLiked,
       isShuffled: isShuffled ?? this.isShuffled,
       repeatMode: repeatMode ?? this.repeatMode,
+      dominantColor: dominantColor ?? this.dominantColor, // Add this line
+      isExtractingColor:
+          isExtractingColor ?? this.isExtractingColor, // Add this line
     );
   }
 
@@ -115,7 +126,33 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     });
   }
 
-  // Update only the loadTrack method in the AudioPlayerNotifier class
+  Future<void> extractDominantColor(String imageUrl) async {
+    try {
+      state = state.copyWith(isExtractingColor: true);
+
+      // Force a new image instance to avoid caching issues
+      final imageProvider = NetworkImage(imageUrl, scale: 1.0);
+
+      // Add a small delay to ensure the image has time to be resolved
+      await Future.delayed(Duration(milliseconds: 300));
+
+      // Extract the color
+      final Color extractedColor = await ColorExtractor.extractDominantColor(
+        imageProvider,
+      );
+
+      // Update state with new color
+      state = state.copyWith(
+        dominantColor: extractedColor,
+        isExtractingColor: false,
+      );
+    } catch (e) {
+      print('Error extracting color: $e');
+      state = state.copyWith(isExtractingColor: false);
+    }
+  }
+
+  // Also update the loadTrack method to extract color first
   Future<void> loadTrack(String trackId) async {
     try {
       state = state.copyWith(isLoading: true);
@@ -133,7 +170,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       final albumName = trackData['album']['name'] as String;
       final durationMs = trackData['duration_ms'] as int;
 
-      // Update the state with the track data and correct stream URL
+      // First update the state with all the new track data
       state = state.copyWith(
         currentTrackId: trackId,
         currentTrackTitle: title,
@@ -144,7 +181,10 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
         currentStreamUrl: streamUrl,
       );
 
-      // Start playing the track with the correct stream URL
+      // Extract dominant color from album art BEFORE playing the stream
+      await extractDominantColor(imageUrl);
+
+      // Only start playing after color extraction is complete
       await playStream();
     } catch (e) {
       print('Error loading track: $e');
