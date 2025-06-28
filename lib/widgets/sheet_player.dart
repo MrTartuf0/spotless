@@ -41,7 +41,9 @@ class SheetPlayer extends ConsumerWidget {
                 ),
                 Expanded(
                   child: Text(
-                    audioState.currentAlbumName,
+                    audioState.currentTrackId.isEmpty
+                        ? 'Album'
+                        : audioState.currentAlbumName,
                     style: const TextStyle(
                       color: Colors.white,
                       letterSpacing: -0.2,
@@ -62,7 +64,11 @@ class SheetPlayer extends ConsumerWidget {
           Expanded(
             child: Padding(
               padding: EdgeInsets.all(16),
-              child: Image.network(audioState.currentTrackImage),
+              child: Image.network(
+                audioState.currentTrackId.isEmpty
+                    ? 'https://placehold.co/420x420.png'
+                    : audioState.currentTrackImage,
+              ),
             ),
           ),
 
@@ -81,7 +87,9 @@ class SheetPlayer extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        audioState.currentTrackTitle,
+                        audioState.currentTrackId.isEmpty
+                            ? "Song Title"
+                            : audioState.currentTrackTitle,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -90,7 +98,9 @@ class SheetPlayer extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        audioState.currentTrackArtist,
+                        audioState.currentTrackId.isEmpty
+                            ? 'Artist'
+                            : audioState.currentTrackArtist,
                         style: TextStyle(
                           color: Colors.grey[300],
                           fontSize: 18,

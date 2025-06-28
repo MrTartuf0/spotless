@@ -29,15 +29,23 @@ android {
 
     buildTypes {
         release {
+            // Add these lines
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // Existing signing config
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
 
 dependencies {
-    // Add ExoPlayer dependencies for better HLS support
+    // Make sure these are added
     implementation("com.google.android.exoplayer:exoplayer-core:2.18.7")
     implementation("com.google.android.exoplayer:exoplayer-hls:2.18.7")
+    implementation("com.google.android.exoplayer:exoplayer-ui:2.18.7")
 }
 
 flutter {

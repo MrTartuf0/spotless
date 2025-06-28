@@ -14,6 +14,14 @@ class BottomPlayer extends ConsumerWidget {
     final audioState = ref.watch(audioPlayerProvider);
     final audioNotifier = ref.read(audioPlayerProvider.notifier);
 
+    // Check if the image URL is valid
+
+    if (audioState.currentTrackId.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final bool hasValidImage = audioState.currentTrackImage.startsWith('http');
+
     return Positioned(
       bottom: 0,
       left: 0,
@@ -63,12 +71,26 @@ class BottomPlayer extends ConsumerWidget {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(4.0),
-                          child: Image.network(
-                            audioState.currentTrackImage,
-                            height: 40,
-                            width: 40,
-                            fit: BoxFit.cover,
-                          ),
+                          child:
+                              hasValidImage
+                                  ? Image.network(
+                                    audioState.currentTrackImage,
+                                    height: 40,
+                                    width: 40,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return _buildPlaceholderImage();
+                                    },
+                                    loadingBuilder: (
+                                      context,
+                                      child,
+                                      loadingProgress,
+                                    ) {
+                                      if (loadingProgress == null) return child;
+                                      return _buildPlaceholderImage();
+                                    },
+                                  )
+                                  : _buildPlaceholderImage(),
                         ),
                         const Gap(10),
                         Expanded(
@@ -77,7 +99,9 @@ class BottomPlayer extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                audioState.currentTrackTitle,
+                                audioState.currentTrackId.isEmpty
+                                    ? "Song"
+                                    : audioState.currentTrackTitle,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
@@ -88,7 +112,9 @@ class BottomPlayer extends ConsumerWidget {
                               ),
                               Gap(4),
                               Text(
-                                audioState.currentTrackArtist,
+                                audioState.currentTrackId.isEmpty
+                                    ? "Artist"
+                                    : audioState.currentTrackArtist,
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 13,
@@ -169,4 +195,14 @@ class BottomPlayer extends ConsumerWidget {
       ),
     );
   }
+}
+
+// Helper method to build a placeholder image
+Widget _buildPlaceholderImage() {
+  return Container(
+    height: 40,
+    width: 40,
+    color: Colors.grey[800],
+    child: const Icon(Icons.music_note, color: Colors.white),
+  );
 }
