@@ -68,6 +68,39 @@ class HomePage extends ConsumerWidget {
                       final audioNotifier = ref.read(
                         audioPlayerProvider.notifier,
                       );
+                      audioNotifier.loadTrack('2aibwv5hGXSgw7Yru8IYTO');
+
+                      // Show a snackbar to indicate the track is loading
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Loading track...',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          duration: Duration(seconds: 1),
+                          backgroundColor: Color(0xff1BD760),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xff1BD760),
+                      foregroundColor: Colors.black,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: Text('Play: 2aibwv5hGXSgw7Yru8IYTO'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Get the audio player notifier and load the track
+                      final audioNotifier = ref.read(
+                        audioPlayerProvider.notifier,
+                      );
                       audioNotifier.loadTrack('1AsNfUfuGmQGXbrjoPQl8j');
 
                       // Show a snackbar to indicate the track is loading

@@ -24,7 +24,7 @@ class TrackRepository {
 
   Future<String> getStreamUrl(String trackId) async {
     try {
-      // Use the correct endpoint to get the HLS stream URL
+      // Try to get the HLS stream URL
       final response = await _dio.get('$_baseUrl/api/hls/$trackId');
 
       if (response.statusCode == 200 && response.data['url'] != null) {
@@ -35,6 +35,7 @@ class TrackRepository {
       }
     } catch (e) {
       print('Error getting stream URL: $e');
+
       // Fallback to the default URL if there's an error
       return '$_baseUrl/hls/94599360893856627734266258834711005588.m3u8';
     }

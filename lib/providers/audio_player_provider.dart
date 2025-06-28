@@ -1,9 +1,10 @@
 // lib/providers/audio_player_provider.dart
-import 'package:flutter/material.dart'; // Add this import for Color class
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:rick_spot/repositories/track_repository.dart';
 import 'package:rick_spot/services/color_extractor.dart';
+import 'package:rick_spot/services/audio_service.dart';
 
 // Audio Player State Model
 class AudioPlayerState {
@@ -20,7 +21,7 @@ class AudioPlayerState {
   final bool isLiked;
   final bool isShuffled;
   final int repeatMode; // 0: off, 1: all, 2: one
-  final Color dominantColor; // Added this field for the dominant color
+  final Color dominantColor;
   final bool isExtractingColor;
 
   const AudioPlayerState({
@@ -28,18 +29,16 @@ class AudioPlayerState {
     this.isLoading = false,
     this.currentPosition = Duration.zero,
     this.totalDuration = Duration.zero,
-    this.currentTrackTitle = 'Dani California',
-    this.currentTrackArtist = 'Red Hot Chili Peppers',
-    this.currentTrackImage =
-        'https://i.scdn.co/image/ab67616d00001e0209fd83d32aee93dceba78517',
-    this.currentStreamUrl =
-        'https://spc.rickyscloud.com/hls/94599360893856627734266258834711005588.m3u8',
-    this.currentAlbumName = 'Blood Sugar Sex Magik (Deluxe Edition)',
-    this.currentTrackId = '3d9DChrdc6BOeFsbrZ3Is0',
+    this.currentTrackTitle = '',
+    this.currentTrackArtist = '',
+    this.currentTrackImage = '',
+    this.currentStreamUrl = '',
+    this.currentAlbumName = '',
+    this.currentTrackId = '',
     this.isLiked = false,
     this.isShuffled = false,
     this.repeatMode = 0,
-    this.dominantColor = const Color(0xFF7F1D1D), // Default color
+    this.dominantColor = const Color(0xFF7F1D1D),
     this.isExtractingColor = false,
   });
 
@@ -57,8 +56,8 @@ class AudioPlayerState {
     bool? isLiked,
     bool? isShuffled,
     int? repeatMode,
-    Color? dominantColor, // Add this parameter
-    bool? isExtractingColor, // Add this parameter
+    Color? dominantColor,
+    bool? isExtractingColor,
   }) {
     return AudioPlayerState(
       isPlaying: isPlaying ?? this.isPlaying,
@@ -74,9 +73,8 @@ class AudioPlayerState {
       isLiked: isLiked ?? this.isLiked,
       isShuffled: isShuffled ?? this.isShuffled,
       repeatMode: repeatMode ?? this.repeatMode,
-      dominantColor: dominantColor ?? this.dominantColor, // Add this line
-      isExtractingColor:
-          isExtractingColor ?? this.isExtractingColor, // Add this line
+      dominantColor: dominantColor ?? this.dominantColor,
+      isExtractingColor: isExtractingColor ?? this.isExtractingColor,
     );
   }
 
@@ -90,38 +88,33 @@ class AudioPlayerState {
 
 // Audio Player Notifier
 class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
-  late AudioPlayer _audioPlayer;
+  final AudioService _audioService = AudioService(); // This is now a singleton
   final TrackRepository _trackRepository;
 
   AudioPlayerNotifier(this._trackRepository) : super(const AudioPlayerState()) {
     _initializeAudioPlayer();
-    // Load the default track data when initialized
-    loadTrack(state.currentTrackId);
+    // REMOVED: Don't load default track automatically
+    // loadTrack(state.currentTrackId);
   }
 
   void _initializeAudioPlayer() {
-    _audioPlayer = AudioPlayer();
-
-    // Listen to player state changes
-    _audioPlayer.onPlayerStateChanged.listen((PlayerState playerState) {
+    // Use the listener methods from our singleton
+    _audioService.addPlayerStateListener((PlayerState playerState) {
       state = state.copyWith(
         isPlaying: playerState == PlayerState.playing,
         isLoading: playerState == PlayerState.playing ? false : state.isLoading,
       );
     });
 
-    // Listen to position changes
-    _audioPlayer.onPositionChanged.listen((Duration position) {
+    _audioService.addPositionListener((Duration position) {
       state = state.copyWith(currentPosition: position);
     });
 
-    // Listen to duration changes
-    _audioPlayer.onDurationChanged.listen((Duration duration) {
+    _audioService.addDurationListener((Duration duration) {
       state = state.copyWith(totalDuration: duration);
     });
 
-    // Listen to completion
-    _audioPlayer.onPlayerComplete.listen((_) {
+    _audioService.addCompletionListener(() {
       state = state.copyWith(isPlaying: false, currentPosition: Duration.zero);
     });
   }
@@ -152,16 +145,30 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     }
   }
 
-  // Also update the loadTrack method to extract color first
   Future<void> loadTrack(String trackId) async {
     try {
-      state = state.copyWith(isLoading: true);
+      // Don't proceed if trackId is empty
+      if (trackId.isEmpty) return;
+
+      // First, stop any existing playback and reset player state
+      await _audioService.stop();
+
+      // Set loading state
+      state = state.copyWith(
+        isLoading: true,
+        currentTrackId: trackId, // Update track ID immediately
+        isPlaying: false, // Reset playing state
+        currentPosition: Duration.zero, // Reset position
+      );
+
+      print('Loading track: $trackId');
 
       // Get track data
       final trackData = await _trackRepository.getTrack(trackId);
 
       // Get the correct stream URL for this track
       final streamUrl = await _trackRepository.getStreamUrl(trackId);
+      print('Stream URL for track $trackId: $streamUrl');
 
       // Extract needed information from track data
       final artist = trackData['artists'][0]['name'] as String;
@@ -170,9 +177,8 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       final albumName = trackData['album']['name'] as String;
       final durationMs = trackData['duration_ms'] as int;
 
-      // First update the state with all the new track data
+      // Update the state with the track data
       state = state.copyWith(
-        currentTrackId: trackId,
         currentTrackTitle: title,
         currentTrackArtist: artist,
         currentTrackImage: imageUrl,
@@ -181,26 +187,39 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
         currentStreamUrl: streamUrl,
       );
 
-      // Extract dominant color from album art BEFORE playing the stream
+      // Extract dominant color from album art
       await extractDominantColor(imageUrl);
 
       // Only start playing after color extraction is complete
-      await playStream();
+      // Force a clean player initialization by using fromBeginning: true
+      await _audioService.play(streamUrl, fromBeginning: true);
+
+      // Update loading state
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       print('Error loading track: $e');
       state = state.copyWith(isLoading: false);
     }
   }
 
-  Future<void> playStream() async {
+  Future<void> playStream({bool fromBeginning = true}) async {
     try {
+      // Don't proceed if there's no stream URL
+      if (state.currentStreamUrl.isEmpty) return;
+
       state = state.copyWith(isLoading: true);
 
-      // Stop any currently playing audio
-      await _audioPlayer.stop();
+      // First, explicitly stop any currently playing audio
+      await _audioService.stop();
 
-      // Play the new stream
-      await _audioPlayer.play(UrlSource(state.currentStreamUrl));
+      // A small delay to ensure proper cleanup
+      await Future.delayed(Duration(milliseconds: 300));
+
+      // Play using our singleton audio service
+      await _audioService.play(
+        state.currentStreamUrl,
+        fromBeginning: fromBeginning,
+      );
     } catch (e) {
       print('Error playing HLS stream: $e');
       state = state.copyWith(isLoading: false);
@@ -209,17 +228,34 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
   Future<void> togglePlayPause() async {
     try {
+      // Don't proceed if there's no track loaded
+      if (state.currentTrackId.isEmpty) return;
+
       if (state.isPlaying) {
-        await _audioPlayer.pause();
+        await _audioService.pause();
       } else {
         state = state.copyWith(isLoading: true);
 
-        if (_audioPlayer.state == PlayerState.stopped) {
-          await playStream();
+        if (_audioService.currentState == PlayerState.stopped) {
+          // Get the current position
+          final currentPosition = state.currentPosition;
+
+          // Start playback, but don't reset to beginning
+          await _audioService.play(
+            state.currentStreamUrl,
+            fromBeginning: false,
+          );
+
+          // Ensure we seek to the right position after a small delay
+          if (currentPosition > Duration.zero) {
+            await Future.delayed(Duration(milliseconds: 200));
+            await _audioService.seek(currentPosition);
+          }
         } else {
-          await _audioPlayer.resume();
-          state = state.copyWith(isLoading: false);
+          await _audioService.resume();
         }
+
+        state = state.copyWith(isLoading: false);
       }
     } catch (e) {
       print('Error toggling play/pause: $e');
@@ -229,7 +265,11 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
   Future<void> seekTo(Duration position) async {
     try {
-      await _audioPlayer.seek(position);
+      // Update our state immediately to reflect the seek position
+      state = state.copyWith(currentPosition: position);
+
+      // Then perform the actual seek operation
+      await _audioService.seek(position);
     } catch (e) {
       print('Error seeking: $e');
     }
@@ -255,7 +295,8 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
+    // Stop any playing audio when disposing
+    _audioService.stop();
     super.dispose();
   }
 }
@@ -267,7 +308,7 @@ final audioPlayerProvider =
       return AudioPlayerNotifier(trackRepository);
     });
 
-// Current track ID provider
+// Current track ID provider - starting with empty string
 final currentTrackIdProvider = StateProvider<String>((ref) {
-  return '3d9DChrdc6BOeFsbrZ3Is0'; // Default track ID
+  return ''; // Empty string means no track loaded by default
 });

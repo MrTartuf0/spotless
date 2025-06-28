@@ -39,9 +39,7 @@ class BottomPlayer extends ConsumerWidget {
                   context: context,
                   isScrollControlled: true, // allow full height
                   useSafeArea: true,
-                  barrierColor: audioState.dominantColor.withOpacity(
-                    0.5,
-                  ), // Use extracted color
+                  barrierColor: audioState.dominantColor, // Use extracted color
                   builder: (BuildContext context) {
                     return SheetPlayer();
                   },
