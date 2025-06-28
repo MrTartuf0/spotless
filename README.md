@@ -1,4 +1,6 @@
-# rick_spot
+# spotless
+
+debloated vibe-coded spotify replica
 
 A new Flutter project.
 
