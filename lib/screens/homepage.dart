@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:rick_spot/widgets/bottom_player.dart';
+import 'package:rick_spot/widgets/result_tile.dart';
 import 'package:rick_spot/widgets/searchbar.dart';
 import 'package:rick_spot/widgets/sheet_player.dart';
 import 'package:rick_spot/providers/audio_player_provider.dart';
@@ -56,12 +57,10 @@ class _HomePageState extends ConsumerState<HomePage> {
             BottomPlayer(),
             SafeArea(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  searchState.isActive || searchState.hasText ? 0 : 48,
-                  16,
-                  0,
-                ),
+                padding:
+                    searchState.isActive || searchState.hasText
+                        ? EdgeInsets.zero
+                        : EdgeInsets.fromLTRB(16, 48, 16, 0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,6 +88,22 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                     // Searchbar with a persistent key
                     Searchbar(key: _searchbarKey),
+
+                    if (!showElements) ...[
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                      ResultTile(),
+                    ],
 
                     // Buttons
                     // if (showElements) ...[

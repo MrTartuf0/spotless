@@ -91,89 +91,99 @@ class SearchbarState extends ConsumerState<Searchbar> {
       "Building searchbar - isActive=${searchState.isActive}, hasText=${searchState.hasText}",
     );
 
-    return Row(
-      children: [
-        // Back arrow
-        if (searchState.isActive || searchState.hasText) ...[
-          GestureDetector(
-            onTap: reset,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: SvgPicture.asset(
-                'assets/icons/back_arrow.svg',
-                color: Colors.white,
+    return Container(
+      color:
+          searchState.isActive || searchState.hasText
+              ? Color(0xff181818)
+              : Colors.transparent,
+      padding:
+          searchState.isActive || searchState.hasText
+              ? EdgeInsets.all(16)
+              : EdgeInsets.zero,
+      child: Row(
+        children: [
+          // Back arrow
+          if (searchState.isActive || searchState.hasText) ...[
+            GestureDetector(
+              onTap: reset,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: SvgPicture.asset(
+                  'assets/icons/back_arrow.svg',
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+
+          // Search container
+          Expanded(
+            child: GestureDetector(
+              onTap: activateSearch,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Search icon
+                    SvgPicture.asset('assets/icons/search.svg'),
+                    Gap(8),
+
+                    // Text field - using a simpler, more direct approach
+                    Expanded(
+                      child: TextField(
+                        controller: _textController,
+                        focusNode: _focusNode,
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 18,
+                          letterSpacing: -0.2,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'What do you want to listen to?',
+                          hintStyle: TextStyle(
+                            letterSpacing: -0.2,
+                            color: Colors.black,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onTap: () {
+                          _debug("TextField tapped directly");
+                          activateSearch();
+                        },
+                      ),
+                    ),
+
+                    // Clear button
+                    if (searchState.hasText)
+                      GestureDetector(
+                        onTap: () {
+                          _debug("Clear button tapped");
+                          _textController.clear();
+                          activateSearch(); // Refocus after clearing
+                        },
+                        child: Icon(Icons.close, size: 24),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ],
-
-        // Search container
-        Expanded(
-          child: GestureDetector(
-            onTap: activateSearch,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Search icon
-                  SvgPicture.asset('assets/icons/search.svg'),
-                  Gap(8),
-
-                  // Text field - using a simpler, more direct approach
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      focusNode: _focusNode,
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 18,
-                        letterSpacing: -0.2,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'What do you want to listen to?',
-                        hintStyle: TextStyle(
-                          letterSpacing: -0.2,
-                          color: Colors.black,
-                        ),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      onTap: () {
-                        _debug("TextField tapped directly");
-                        activateSearch();
-                      },
-                    ),
-                  ),
-
-                  // Clear button
-                  if (searchState.hasText)
-                    GestureDetector(
-                      onTap: () {
-                        _debug("Clear button tapped");
-                        _textController.clear();
-                        activateSearch(); // Refocus after clearing
-                      },
-                      child: Icon(Icons.close, size: 24),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
