@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:rick_spot/widgets/bottom_player.dart';
+import 'package:rick_spot/widgets/horizontal_album_scroller.dart';
 import 'package:rick_spot/widgets/result_tile.dart';
 import 'package:rick_spot/widgets/searchbar.dart';
 import 'package:rick_spot/widgets/sheet_player.dart';
@@ -90,19 +91,73 @@ class _HomePageState extends ConsumerState<HomePage> {
                     Searchbar(key: _searchbarKey),
 
                     if (!showElements) ...[
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
-                      ResultTile(),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              ResultTile(),
+                              HorizontalAlbumScroller(
+                                albums: [
+                                  Album(
+                                    artist: "Red Hot Chili Peppers",
+                                    artistId: "0L8ExT028jH3ddEcZwqJJ5",
+                                    id: "53tvjWbVNZKd3CvpENkzOC",
+                                    imageUri:
+                                        "https://i.scdn.co/image/ab67616d0000b2735590b4ee88187cb06a5b102d",
+                                    name: "Greatest Hits",
+                                  ),
+                                  Album(
+                                    artist: "Red Hot Chili Peppers",
+                                    artistId: "0L8ExT028jH3ddEcZwqJJ5",
+                                    id: "2Y9IRtehByVkegoD7TcLfi",
+                                    imageUri:
+                                        "https://i.scdn.co/image/ab67616d0000b27394d08ab63e57b0cae74e8595",
+                                    name: "Californication (Deluxe Edition)",
+                                  ),
+                                  Album(
+                                    artist: "Red Hot Chili Peppers",
+                                    artistId: "0L8ExT028jH3ddEcZwqJJ5",
+                                    id: "30Perjew8HyGkdSmqguYyg",
+                                    imageUri:
+                                        "https://i.scdn.co/image/ab67616d0000b273153d79816d853f2694b2cc70",
+                                    name:
+                                        "Blood Sugar Sex Magik (Deluxe Edition)",
+                                  ),
+                                  Album(
+                                    artist: "Red Hot Chili Peppers",
+                                    artistId: "0L8ExT028jH3ddEcZwqJJ5",
+                                    id: "6deiaArbeoqp1xPEGdEKp1",
+                                    imageUri:
+                                        "https://i.scdn.co/image/ab67616d0000b273de1af2785a83cc660155a0c4",
+                                    name: "By the Way (Deluxe Edition)",
+                                  ),
+                                  Album(
+                                    artist: "Red Hot Chili Peppers",
+                                    artistId: "0L8ExT028jH3ddEcZwqJJ5",
+                                    id: "2ITVvrNiINKRiW7wA3w6w6",
+                                    imageUri:
+                                        "https://i.scdn.co/image/ab67616d0000b27397a52e0aeda9d95fb881c56d",
+                                    name: "Unlimited Love",
+                                  ),
+                                ],
+                              ),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                              ResultTile(),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
 
                     // Buttons
