@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
+import 'package:rick_spot/providers/search_result_provider.dart';
 import 'package:rick_spot/widgets/bottom_player.dart';
 import 'package:rick_spot/widgets/horizontal_album_scroller.dart';
 import 'package:rick_spot/widgets/result_tile.dart';
@@ -59,6 +60,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(searchStateProvider);
+    final searchResults = ref.watch(searchResultsProvider);
     final showElements = !searchState.isActive && !searchState.hasText;
 
     // Only hide the bottom player when the keyboard is ACTUALLY visible
@@ -105,122 +107,83 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                       if (!showElements) ...[
                         Expanded(
-                          child: SingleChildScrollView(
-                            // Add padding at the bottom when results are shown to account for player
-                            padding: EdgeInsets.only(
-                              bottom:
-                                  80, // Always add padding for bottom player
-                            ),
-                            child: Column(
-                              children: [
-                                // ResultTile widgets now handle their own keyboard visibility
-                                ResultTile(
-                                  albumId: "6deiaArbeoqp1xPEGdEKp1",
-                                  albumName: "By the Way (Deluxe Edition)",
-                                  artist: "Red Hot Chili Peppers",
-                                  artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                  duration: 269000,
-                                  id: "3ZOEytgrvLwQaqXreDs2Jx",
-                                  imageUri:
-                                      "https://i.scdn.co/image/ab67616d0000b273de1af2785a83cc660155a0c4",
-                                  name: "Can't Stop",
-                                ),
+                          child:
+                              searchResults.isLoading
+                                  ? Center(
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xff1BD760),
+                                    ),
+                                  )
+                                  : searchResults.tracks.isEmpty &&
+                                      searchResults.albums.isEmpty
+                                  ? Center(
+                                    child: Text(
+                                      searchResults.error.isNotEmpty
+                                          ? searchResults.error
+                                          : 'No results found',
+                                      style: TextStyle(color: Colors.white60),
+                                    ),
+                                  )
+                                  : SingleChildScrollView(
+                                    // Add padding at the bottom when results are shown to account for player
+                                    padding: EdgeInsets.only(
+                                      bottom:
+                                          80, // Always add padding for bottom player
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        // First track at the top
+                                        if (searchResults.tracks.isNotEmpty)
+                                          ResultTile(
+                                            albumId:
+                                                searchResults
+                                                    .tracks[0]['albumId'],
+                                            albumName:
+                                                searchResults
+                                                    .tracks[0]['albumName'],
+                                            artist:
+                                                searchResults
+                                                    .tracks[0]['artist'],
+                                            artistId:
+                                                searchResults
+                                                    .tracks[0]['artistId'],
+                                            duration:
+                                                searchResults
+                                                    .tracks[0]['duration'],
+                                            id: searchResults.tracks[0]['id'],
+                                            imageUri:
+                                                searchResults
+                                                    .tracks[0]['imageUri'],
+                                            name:
+                                                searchResults.tracks[0]['name'],
+                                          ),
 
-                                // HorizontalAlbumScroller also handles keyboard visibility
-                                HorizontalAlbumScroller(
-                                  albums: [
-                                    Album(
-                                      artist: "Red Hot Chili Peppers",
-                                      artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                      id: "53tvjWbVNZKd3CvpENkzOC",
-                                      imageUri:
-                                          "https://i.scdn.co/image/ab67616d0000b2735590b4ee88187cb06a5b102d",
-                                      name: "Greatest Hits",
-                                    ),
-                                    Album(
-                                      artist: "Red Hot Chili Peppers",
-                                      artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                      id: "2Y9IRtehByVkegoD7TcLfi",
-                                      imageUri:
-                                          "https://i.scdn.co/image/ab67616d0000b27394d08ab63e57b0cae74e8595",
-                                      name: "Californication (Deluxe Edition)",
-                                    ),
-                                    Album(
-                                      artist: "Red Hot Chili Peppers",
-                                      artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                      id: "30Perjew8HyGkdSmqguYyg",
-                                      imageUri:
-                                          "https://i.scdn.co/image/ab67616d0000b273153d79816d853f2694b2cc70",
-                                      name:
-                                          "Blood Sugar Sex Magik (Deluxe Edition)",
-                                    ),
-                                    Album(
-                                      artist: "Red Hot Chili Peppers",
-                                      artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                      id: "6deiaArbeoqp1xPEGdEKp1",
-                                      imageUri:
-                                          "https://i.scdn.co/image/ab67616d0000b273de1af2785a83cc660155a0c4",
-                                      name: "By the Way (Deluxe Edition)",
-                                    ),
-                                    Album(
-                                      artist: "Red Hot Chili Peppers",
-                                      artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                      id: "2ITVvrNiINKRiW7wA3w6w6",
-                                      imageUri:
-                                          "https://i.scdn.co/image/ab67616d0000b27397a52e0aeda9d95fb881c56d",
-                                      name: "Unlimited Love",
-                                    ),
-                                  ],
-                                ),
+                                        // Albums in horizontal scrollview
+                                        if (searchResults.albums.isNotEmpty)
+                                          HorizontalAlbumScroller(
+                                            albums: searchResults.albums,
+                                          ),
 
-                                ResultTile(
-                                  albumId: "2Y9IRtehByVkegoD7TcLfi",
-                                  albumName: "Californication (Deluxe Edition)",
-                                  artist: "Red Hot Chili Peppers",
-                                  artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                  duration: 329733,
-                                  id: "48UPSzbZjgc449aqz8bxox",
-                                  imageUri:
-                                      "https://i.scdn.co/image/ab67616d0000b27394d08ab63e57b0cae74e8595",
-                                  name: "Californication",
-                                ),
-                                ResultTile(
-                                  albumId: "7xl50xr9NDkd3i2kBbzsNZ",
-                                  albumName: "Stadium Arcadium",
-                                  artist: "Red Hot Chili Peppers",
-                                  artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                  duration: 334666,
-                                  id: "2aibwv5hGXSgw7Yru8IYTO",
-                                  imageUri:
-                                      "https://i.scdn.co/image/ab67616d0000b27309fd83d32aee93dceba78517",
-                                  name: "Snow (Hey Oh)",
-                                ),
-                                ResultTile(
-                                  albumId: "2Y9IRtehByVkegoD7TcLfi",
-                                  albumName: "Californication (Deluxe Edition)",
-                                  artist: "Red Hot Chili Peppers",
-                                  artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                  duration: 255373,
-                                  id: "64BbK9SFKH2jk86U3dGj2P",
-                                  imageUri:
-                                      "https://i.scdn.co/image/ab67616d0000b27394d08ab63e57b0cae74e8595",
-                                  name: "Otherside",
-                                ),
-                                ResultTile(
-                                  albumId: "30Perjew8HyGkdSmqguYyg",
-                                  albumName:
-                                      "Blood Sugar Sex Magik (Deluxe Edition)",
-                                  artist: "Red Hot Chili Peppers",
-                                  artistId: "0L8ExT028jH3ddEcZwqJJ5",
-                                  duration: 264306,
-                                  id: "3d9DChrdc6BOeFsbrZ3Is0",
-                                  imageUri:
-                                      "https://i.scdn.co/image/ab67616d0000b273153d79816d853f2694b2cc70",
-                                  name: "Under the Bridge",
-                                ),
-                              ],
-                            ),
-                          ),
+                                        // Remaining tracks
+                                        if (searchResults.tracks.length > 1)
+                                          ...searchResults.tracks
+                                              .skip(1)
+                                              .map(
+                                                (track) => ResultTile(
+                                                  albumId: track['albumId'],
+                                                  albumName: track['albumName'],
+                                                  artist: track['artist'],
+                                                  artistId: track['artistId'],
+                                                  duration: track['duration'],
+                                                  id: track['id'],
+                                                  imageUri: track['imageUri'],
+                                                  name: track['name'],
+                                                ),
+                                              )
+                                              .toList(),
+                                      ],
+                                    ),
+                                  ),
                         ),
                       ],
                     ],

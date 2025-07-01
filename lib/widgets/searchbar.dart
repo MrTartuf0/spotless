@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:gap/gap.dart';
+import 'package:rick_spot/providers/search_result_provider.dart';
 import 'package:rick_spot/providers/searchbar_provider.dart';
+import 'dart:async';
 
 // Debug logging
 void _debug(String message) {
@@ -20,6 +22,7 @@ class Searchbar extends ConsumerStatefulWidget {
 class SearchbarState extends ConsumerState<Searchbar> {
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -31,6 +34,13 @@ class SearchbarState extends ConsumerState<Searchbar> {
       final hasText = _textController.text.isNotEmpty;
       _debug("Text changed: '${_textController.text}', hasText=$hasText");
       ref.read(searchStateProvider.notifier).setHasText(hasText);
+
+      // Debounce search queries
+      if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+      _debounceTimer = Timer(Duration(milliseconds: 300), () {
+        // Execute search
+        ref.read(searchResultsProvider.notifier).search(_textController.text);
+      });
     });
 
     // Listen to focus changes
@@ -50,6 +60,7 @@ class SearchbarState extends ConsumerState<Searchbar> {
     _debug("SearchBar dispose called");
     _textController.dispose();
     _focusNode.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -92,6 +103,7 @@ class SearchbarState extends ConsumerState<Searchbar> {
     _textController.clear();
     unfocusWithoutStateChange();
     ref.read(searchStateProvider.notifier).reset();
+    ref.read(searchResultsProvider.notifier).clearSearch();
   }
 
   @override
@@ -185,6 +197,9 @@ class SearchbarState extends ConsumerState<Searchbar> {
                           _debug("Clear button tapped");
                           _textController.clear();
                           activateSearch(); // Refocus after clearing
+                          ref
+                              .read(searchResultsProvider.notifier)
+                              .clearSearch();
                         },
                         child: Icon(Icons.close, size: 24),
                       ),
