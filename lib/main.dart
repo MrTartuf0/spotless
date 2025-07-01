@@ -1,17 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:rick_spot/screens/homepage.dart';
+import 'package:rick_spot/screens/artist_page.dart';
+
+// Define a provider for the router
+final routerProvider = Provider<GoRouter>((ref) {
+  return GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(
+        path: '/',
+        name: 'home',
+        builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: '/artist/:artistId',
+        name: 'artist',
+        builder: (context, state) {
+          final artistId = state.pathParameters['artistId'] ?? '';
+          final artistName = state.uri.queryParameters['name'] ?? 'Artist';
+          return ArtistPage(artistId: artistId, artistName: artistName);
+        },
+      ),
+    ],
+  );
+});
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Get the router from the provider
+    final router = ref.watch(routerProvider);
+
+    return MaterialApp.router(
       theme: ThemeData(
         colorSchemeSeed: Color(0xff1BD760),
         textSelectionTheme: TextSelectionThemeData(
@@ -27,7 +55,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: const HomePage(),
+      routerConfig: router,
     );
   }
 }

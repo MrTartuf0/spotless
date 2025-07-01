@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:rick_spot/providers/search_result_provider.dart';
+import 'package:rick_spot/widgets/artist_tile.dart';
 import 'package:rick_spot/widgets/bottom_player.dart';
 import 'package:rick_spot/widgets/horizontal_album_scroller.dart';
 import 'package:rick_spot/widgets/result_tile.dart';
@@ -158,6 +159,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                                         HorizontalAlbumScroller(
                                           albums: searchResults.albums,
                                         ),
+
+                                      // artist tile
+                                      ArtistTile(
+                                        artistId:
+                                            searchResults.tracks[0]['artistId'],
+                                        artistName:
+                                            searchResults.tracks[0]['artist'],
+                                      ),
 
                                       // Remaining tracks
                                       if (searchResults.tracks.length > 1)
