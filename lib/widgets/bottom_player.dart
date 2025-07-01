@@ -15,17 +15,15 @@ class BottomPlayer extends ConsumerWidget {
     final audioNotifier = ref.read(audioPlayerProvider.notifier);
 
     // Check if the image URL is valid
-
     if (audioState.currentTrackId.isEmpty) {
       return const SizedBox.shrink();
     }
 
     final bool hasValidImage = audioState.currentTrackImage.startsWith('http');
 
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
+    // Wrap in a Container instead of Positioned
+    return Container(
+      width: double.infinity,
       child: Stack(
         children: [
           GestureDetector(

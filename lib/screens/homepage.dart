@@ -28,9 +28,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   // Keep a single instance of the SearchBar
   final GlobalKey<SearchbarState> _searchbarKey = GlobalKey<SearchbarState>();
 
-  // Create a key for the bottom player to access it directly
-  final GlobalKey _bottomPlayerKey = GlobalKey();
-
   @override
   void initState() {
     super.initState();
@@ -72,139 +69,127 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       backgroundColor: Color(0xFF121212),
+      // Use a Stack to position the content and bottom player
       body: Stack(
         children: [
-          // Main content with gesture detector for background taps only
-          Positioned.fill(
+          // Main content
+          SafeArea(
+            bottom: false, // No bottom padding - we'll handle it ourselves
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTap: _handleBackgroundTap,
-              child: SafeArea(
-                bottom: false, // No bottom padding - we'll handle it ourselves
-                child: Padding(
-                  padding:
-                      searchState.isActive || searchState.hasText
-                          ? EdgeInsets.zero
-                          : EdgeInsets.fromLTRB(16, 48, 16, 0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title
-                      if (showElements)
-                        Text(
-                          'Search',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 32,
-                          ),
+              child: Padding(
+                padding:
+                    searchState.isActive || searchState.hasText
+                        ? EdgeInsets.zero
+                        : EdgeInsets.fromLTRB(16, 48, 16, 0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    if (showElements)
+                      Text(
+                        'Search',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 32,
                         ),
+                      ),
 
-                      if (showElements) Gap(16),
+                    if (showElements) Gap(16),
 
-                      // Searchbar with a persistent key
-                      Searchbar(key: _searchbarKey),
+                    // Searchbar with a persistent key
+                    Searchbar(key: _searchbarKey),
 
-                      if (!showElements) ...[
-                        Expanded(
-                          child:
-                              searchResults.isLoading
-                                  ? Center(
-                                    child: CircularProgressIndicator(
-                                      color: Color(0xff1BD760),
-                                    ),
-                                  )
-                                  : searchResults.tracks.isEmpty &&
-                                      searchResults.albums.isEmpty
-                                  ? Center(
-                                    child: Text(
-                                      searchResults.error.isNotEmpty
-                                          ? searchResults.error
-                                          : 'No results found',
-                                      style: TextStyle(color: Colors.white60),
-                                    ),
-                                  )
-                                  : SingleChildScrollView(
-                                    // Add padding at the bottom when results are shown to account for player
-                                    padding: EdgeInsets.only(
-                                      bottom:
-                                          80, // Always add padding for bottom player
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        // First track at the top
-                                        if (searchResults.tracks.isNotEmpty)
-                                          ResultTile(
-                                            albumId:
-                                                searchResults
-                                                    .tracks[0]['albumId'],
-                                            albumName:
-                                                searchResults
-                                                    .tracks[0]['albumName'],
-                                            artist:
-                                                searchResults
-                                                    .tracks[0]['artist'],
-                                            artistId:
-                                                searchResults
-                                                    .tracks[0]['artistId'],
-                                            duration:
-                                                searchResults
-                                                    .tracks[0]['duration'],
-                                            id: searchResults.tracks[0]['id'],
-                                            imageUri:
-                                                searchResults
-                                                    .tracks[0]['imageUri'],
-                                            name:
-                                                searchResults.tracks[0]['name'],
-                                          ),
-
-                                        // Albums in horizontal scrollview
-                                        if (searchResults.albums.isNotEmpty)
-                                          HorizontalAlbumScroller(
-                                            albums: searchResults.albums,
-                                          ),
-
-                                        // Remaining tracks
-                                        if (searchResults.tracks.length > 1)
-                                          ...searchResults.tracks
-                                              .skip(1)
-                                              .map(
-                                                (track) => ResultTile(
-                                                  albumId: track['albumId'],
-                                                  albumName: track['albumName'],
-                                                  artist: track['artist'],
-                                                  artistId: track['artistId'],
-                                                  duration: track['duration'],
-                                                  id: track['id'],
-                                                  imageUri: track['imageUri'],
-                                                  name: track['name'],
-                                                ),
-                                              )
-                                              .toList(),
-                                      ],
-                                    ),
+                    if (!showElements) ...[
+                      Expanded(
+                        child:
+                            searchResults.isLoading
+                                ? Center(
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xff1BD760),
                                   ),
-                        ),
-                      ],
+                                )
+                                : searchResults.tracks.isEmpty &&
+                                    searchResults.albums.isEmpty
+                                ? Center(
+                                  child: Text(
+                                    searchResults.error.isNotEmpty
+                                        ? searchResults.error
+                                        : 'No results found',
+                                    style: TextStyle(color: Colors.white60),
+                                  ),
+                                )
+                                : SingleChildScrollView(
+                                  // Add padding at the bottom when results are shown to account for player
+                                  padding: EdgeInsets.only(
+                                    bottom:
+                                        80, // Always add padding for bottom player
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      // First track at the top
+                                      if (searchResults.tracks.isNotEmpty)
+                                        ResultTile(
+                                          albumId:
+                                              searchResults
+                                                  .tracks[0]['albumId'],
+                                          albumName:
+                                              searchResults
+                                                  .tracks[0]['albumName'],
+                                          artist:
+                                              searchResults.tracks[0]['artist'],
+                                          artistId:
+                                              searchResults
+                                                  .tracks[0]['artistId'],
+                                          duration:
+                                              searchResults
+                                                  .tracks[0]['duration'],
+                                          id: searchResults.tracks[0]['id'],
+                                          imageUri:
+                                              searchResults
+                                                  .tracks[0]['imageUri'],
+                                          name: searchResults.tracks[0]['name'],
+                                        ),
+
+                                      // Albums in horizontal scrollview
+                                      if (searchResults.albums.isNotEmpty)
+                                        HorizontalAlbumScroller(
+                                          albums: searchResults.albums,
+                                        ),
+
+                                      // Remaining tracks
+                                      if (searchResults.tracks.length > 1)
+                                        ...searchResults.tracks
+                                            .skip(1)
+                                            .map(
+                                              (track) => ResultTile(
+                                                albumId: track['albumId'],
+                                                albumName: track['albumName'],
+                                                artist: track['artist'],
+                                                artistId: track['artistId'],
+                                                duration: track['duration'],
+                                                id: track['id'],
+                                                imageUri: track['imageUri'],
+                                                name: track['name'],
+                                              ),
+                                            )
+                                            .toList(),
+                                    ],
+                                  ),
+                                ),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ),
           ),
 
-          // Bottom player - always visible EXCEPT when keyboard is showing
+          // Bottom player at the bottom of the screen
           if (showBottomPlayer)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Material(
-                elevation: 8,
-                color: Colors.transparent,
-                child: BottomPlayer(key: _bottomPlayerKey),
-              ),
-            ),
+            Positioned(left: 0, right: 0, bottom: 0, child: BottomPlayer()),
         ],
       ),
     );
