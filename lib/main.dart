@@ -20,7 +20,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final artistId = state.pathParameters['artistId'] ?? '';
           final artistName = state.uri.queryParameters['name'] ?? 'Artist';
-          return ArtistPage(artistId: artistId, artistName: artistName);
+          final artistImage = state.uri.queryParameters['image'] ?? '';
+
+          return ArtistPage(
+            artistId: artistId,
+            artistName: artistName,
+            artistImage: artistImage,
+          );
         },
       ),
     ],

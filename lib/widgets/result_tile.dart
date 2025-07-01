@@ -62,25 +62,50 @@ class ResultTile extends ConsumerWidget {
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
+            // Album artwork
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: Image.network(imageUri, height: 48, width: 48),
+              child: Image.network(
+                imageUri,
+                height: 48,
+                width: 48,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 48,
+                    width: 48,
+                    color: Colors.grey[800],
+                    child: Icon(Icons.music_note, color: Colors.white70),
+                  );
+                },
+              ),
             ),
             Gap(12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: TextStyle(fontSize: 17, letterSpacing: -0.2)),
-                Text(
-                  "Song • $artist",
-                  style: TextStyle(
-                    color: Color(0xaaffffff),
-                    fontSize: 13,
-                    letterSpacing: 0,
+            // Song info with text overflow handling
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(fontSize: 17, letterSpacing: -0.2),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                  Text(
+                    "Song • $artist",
+                    style: TextStyle(
+                      color: Color(0xaaffffff),
+                      fontSize: 13,
+                      letterSpacing: 0,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
+            // Add some padding on the right to ensure text doesn't touch the edge
+            SizedBox(width: 8),
           ],
         ),
       ),

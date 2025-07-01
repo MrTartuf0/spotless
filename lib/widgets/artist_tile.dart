@@ -7,13 +7,9 @@ import 'package:dio/dio.dart';
 
 class ArtistTile extends StatefulWidget {
   final String artistId;
-  final String? artistName; // Add optional artistName parameter
+  final String? artistName;
 
-  const ArtistTile({
-    super.key,
-    required this.artistId,
-    this.artistName, // Optional parameter for the artist name
-  });
+  const ArtistTile({super.key, required this.artistId, this.artistName});
 
   @override
   State<ArtistTile> createState() => _ArtistTileState();
@@ -24,7 +20,8 @@ class _ArtistTileState extends State<ArtistTile> {
 
   bool _isLoading = true;
   late String _artistName;
-  String _imageUrl = "";
+  String _imageUrl = ""; // Small image for display
+  String _highResImageUrl = ""; // High-res image for passing to artist page
   bool _isVerified = false;
   String? _currentArtistId;
 
@@ -60,9 +57,9 @@ class _ArtistTileState extends State<ArtistTile> {
       // Reset state and fetch new data
       setState(() {
         _isLoading = true;
-        _artistName =
-            widget.artistName ?? "Loading..."; // Use provided name or default
+        _artistName = widget.artistName ?? "Loading...";
         _imageUrl = "";
+        _highResImageUrl = "";
         _isVerified = false;
         _currentArtistId = widget.artistId;
       });
@@ -75,15 +72,11 @@ class _ArtistTileState extends State<ArtistTile> {
     try {
       print('ArtistTile: Fetching data for artist ID: ${widget.artistId}');
 
-      // Clear any previous cached responses
       final url = 'https://spc.rickyscloud.com/api/artist/${widget.artistId}';
 
       final response = await _dio.get(
         url,
-        options: Options(
-          // Ensure we're not getting cached responses
-          extra: {'refresh': true},
-        ),
+        options: Options(extra: {'refresh': true}),
       );
 
       if (response.statusCode == 200) {
@@ -92,9 +85,19 @@ class _ArtistTileState extends State<ArtistTile> {
           'ArtistTile: Received data for ${data['name']} (ID: ${data['id']})',
         );
 
-        // Get the smallest image (last one in the array)
+        // Get the images
         final List<dynamic> images = data['images'] ?? [];
-        final String imageUrl = images.isNotEmpty ? images.last['url'] : "";
+
+        String smallImageUrl = "";
+        String highResImageUrl = "";
+
+        if (images.isNotEmpty) {
+          // Get the high-res image (first in array)
+          highResImageUrl = images.first['url'] ?? "";
+
+          // Get the smallest image (last in array) for display
+          smallImageUrl = images.last['url'] ?? "";
+        }
 
         // Determine if the artist is verified (popularity > 60)
         final int popularity = data['popularity'] ?? 0;
@@ -106,7 +109,8 @@ class _ArtistTileState extends State<ArtistTile> {
             if (widget.artistName == null) {
               _artistName = data['name'] ?? "Unknown Artist";
             }
-            _imageUrl = imageUrl;
+            _imageUrl = smallImageUrl;
+            _highResImageUrl = highResImageUrl;
             _isLoading = false;
             _isVerified = popularity > 60;
           });
@@ -114,14 +118,11 @@ class _ArtistTileState extends State<ArtistTile> {
       }
     } catch (e) {
       print('Error fetching artist data for ID ${widget.artistId}: $e');
-      // Only update state if this is still the current artist
-      if (_currentArtistId == widget.artistId && widget.artistName == null) {
+      if (_currentArtistId == widget.artistId) {
         setState(() {
-          _artistName = "Error loading artist";
-          _isLoading = false;
-        });
-      } else if (_currentArtistId == widget.artistId) {
-        setState(() {
+          if (widget.artistName == null) {
+            _artistName = "Error loading artist";
+          }
           _isLoading = false;
         });
       }
@@ -132,8 +133,10 @@ class _ArtistTileState extends State<ArtistTile> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Navigate to artist page with artist name
-        context.push('/artist/${widget.artistId}?name=$_artistName');
+        // Navigate to artist page with all parameters
+        context.push(
+          '/artist/${widget.artistId}?name=$_artistName&image=${Uri.encodeComponent(_highResImageUrl)}',
+        );
       },
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -147,7 +150,7 @@ class _ArtistTileState extends State<ArtistTile> {
                       ? Container(
                         height: 48,
                         width: 48,
-                        color: Color(0x6affffff),
+                        color: Colors.grey[800],
                         child: Center(
                           child:
                               _isLoading
@@ -166,6 +169,7 @@ class _ArtistTileState extends State<ArtistTile> {
                         _imageUrl,
                         height: 48,
                         width: 48,
+                        fit: BoxFit.cover,
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return Container(
@@ -240,7 +244,6 @@ class _ArtistTileState extends State<ArtistTile> {
 
   @override
   void dispose() {
-    // Cancel any pending requests when the widget is disposed
     _dio.close();
     super.dispose();
   }
