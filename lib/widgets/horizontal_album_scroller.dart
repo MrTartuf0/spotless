@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rick_spot/providers/searchbar_provider.dart';
 
-class HorizontalAlbumScroller extends StatelessWidget {
+class HorizontalAlbumScroller extends ConsumerWidget {
   final List<Album> albums;
+  final Function(Album)? onAlbumTap;
 
-  const HorizontalAlbumScroller({super.key, required this.albums});
+  const HorizontalAlbumScroller({
+    super.key,
+    required this.albums,
+    this.onAlbumTap,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: EdgeInsets.fromLTRB(0, 28, 0, 16),
       child: SingleChildScrollView(
@@ -23,6 +30,17 @@ class HorizontalAlbumScroller extends StatelessWidget {
                     imageUrl: album.imageUri,
                     albumName: album.name,
                     artistName: album.artist,
+                    onTap: () {
+                      // Ensure keyboard is hidden and bottom player is visible
+                      ref
+                          .read(searchStateProvider.notifier)
+                          .setKeyboardVisible(false);
+
+                      // Call the provided album tap handler if any
+                      if (onAlbumTap != null) {
+                        onAlbumTap!(album);
+                      }
+                    },
                   ),
                 ),
               ].expand((widget) {
@@ -50,61 +68,66 @@ class AlbumItem extends StatelessWidget {
   final String imageUrl;
   final String albumName;
   final String artistName;
+  final VoidCallback? onTap;
 
   const AlbumItem({
     super.key,
     required this.imageUrl,
     required this.albumName,
     required this.artistName,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: Image.network(
-            imageUrl,
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Image.network(
+              imageUrl,
+              width: 150,
+              height: 150,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 150,
+                  height: 150,
+                  color: Colors.grey[300],
+                  child: const Icon(
+                    Icons.music_note,
+                    size: 40,
+                    color: Colors.grey,
+                  ),
+                );
+              },
+            ),
+          ),
+          const Gap(8), // Gap between image and text
+          SizedBox(
             width: 150,
-            height: 150,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                width: 150,
-                height: 150,
-                color: Colors.grey[300],
-                child: const Icon(
-                  Icons.music_note,
-                  size: 40,
-                  color: Colors.grey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  albumName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    letterSpacing: 0,
+                    height: 0,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              );
-            },
+              ],
+            ),
           ),
-        ),
-        const Gap(8), // Gap between image and text
-        SizedBox(
-          width: 150,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                albumName,
-                style: const TextStyle(
-                  fontSize: 16,
-                  letterSpacing: 0,
-                  height: 0,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

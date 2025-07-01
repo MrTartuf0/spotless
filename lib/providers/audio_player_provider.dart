@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:rick_spot/repositories/track_repository.dart';
 import 'package:rick_spot/services/color_extractor.dart';
 import 'package:rick_spot/services/audio_service.dart';
+import 'package:rick_spot/providers/searchbar_provider.dart'; // Add this import
 
 // Audio Player State Model
 class AudioPlayerState {
@@ -90,8 +91,10 @@ class AudioPlayerState {
 class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   final AudioService _audioService = AudioService(); // This is now a singleton
   final TrackRepository _trackRepository;
+  final Ref ref;
 
-  AudioPlayerNotifier(this._trackRepository) : super(const AudioPlayerState()) {
+  AudioPlayerNotifier(this._trackRepository, this.ref)
+    : super(const AudioPlayerState()) {
     _initializeAudioPlayer();
     // REMOVED: Don't load default track automatically
     // loadTrack(state.currentTrackId);
@@ -147,6 +150,11 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
   Future<void> loadTrack(String trackId) async {
     try {
+      // Ensure keyboard is hidden and bottom player is visible
+      if (ref.read(searchStateProvider.notifier).state.isKeyboardVisible) {
+        ref.read(searchStateProvider.notifier).setKeyboardVisible(false);
+      }
+
       // Don't proceed if trackId is empty
       if (trackId.isEmpty) return;
 
@@ -204,6 +212,11 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
   Future<void> playStream({bool fromBeginning = true}) async {
     try {
+      // Ensure keyboard is hidden and bottom player is visible
+      if (ref.read(searchStateProvider.notifier).state.isKeyboardVisible) {
+        ref.read(searchStateProvider.notifier).setKeyboardVisible(false);
+      }
+
       // Don't proceed if there's no stream URL
       if (state.currentStreamUrl.isEmpty) return;
 
@@ -228,6 +241,11 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
   Future<void> togglePlayPause() async {
     try {
+      // Ensure keyboard is hidden and bottom player is visible
+      if (ref.read(searchStateProvider.notifier).state.isKeyboardVisible) {
+        ref.read(searchStateProvider.notifier).setKeyboardVisible(false);
+      }
+
       // Don't proceed if there's no track loaded
       if (state.currentTrackId.isEmpty) return;
 
@@ -305,7 +323,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 final audioPlayerProvider =
     StateNotifierProvider<AudioPlayerNotifier, AudioPlayerState>((ref) {
       final trackRepository = ref.watch(trackRepositoryProvider);
-      return AudioPlayerNotifier(trackRepository);
+      return AudioPlayerNotifier(trackRepository, ref);
     });
 
 // Current track ID provider - starting with empty string

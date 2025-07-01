@@ -37,6 +37,11 @@ class SearchbarState extends ConsumerState<Searchbar> {
     _focusNode.addListener(() {
       _debug("Focus changed: hasFocus=${_focusNode.hasFocus}");
       ref.read(searchStateProvider.notifier).setActive(_focusNode.hasFocus);
+
+      // Update keyboard visibility when focus changes
+      if (_focusNode.hasFocus) {
+        ref.read(searchStateProvider.notifier).setKeyboardVisible(true);
+      }
     });
   }
 
@@ -54,6 +59,9 @@ class SearchbarState extends ConsumerState<Searchbar> {
 
     // Set active state first
     ref.read(searchStateProvider.notifier).setActive(true);
+
+    // Set keyboard visible
+    ref.read(searchStateProvider.notifier).setKeyboardVisible(true);
 
     // Request focus
     _debug("Requesting focus");
@@ -73,6 +81,9 @@ class SearchbarState extends ConsumerState<Searchbar> {
     _debug("unfocusWithoutStateChange called");
     SystemChannels.textInput.invokeMethod('TextInput.hide');
     _focusNode.unfocus();
+
+    // Set keyboard not visible
+    ref.read(searchStateProvider.notifier).setKeyboardVisible(false);
   }
 
   // Clear text and reset everything

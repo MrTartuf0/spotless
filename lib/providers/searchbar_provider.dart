@@ -9,13 +9,23 @@ final searchStateProvider =
 class SearchState {
   final bool isActive;
   final bool hasText;
+  final bool isKeyboardVisible;
 
-  const SearchState({this.isActive = false, this.hasText = false});
+  const SearchState({
+    this.isActive = false,
+    this.hasText = false,
+    this.isKeyboardVisible = false,
+  });
 
-  SearchState copyWith({bool? isActive, bool? hasText}) {
+  SearchState copyWith({
+    bool? isActive,
+    bool? hasText,
+    bool? isKeyboardVisible,
+  }) {
     return SearchState(
       isActive: isActive ?? this.isActive,
       hasText: hasText ?? this.hasText,
+      isKeyboardVisible: isKeyboardVisible ?? this.isKeyboardVisible,
     );
   }
 }
@@ -29,6 +39,10 @@ class SearchStateNotifier extends StateNotifier<SearchState> {
 
   void setHasText(bool hasText) {
     state = state.copyWith(hasText: hasText);
+  }
+
+  void setKeyboardVisible(bool isVisible) {
+    state = state.copyWith(isKeyboardVisible: isVisible);
   }
 
   void reset() {
