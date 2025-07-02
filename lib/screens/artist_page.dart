@@ -219,7 +219,11 @@ class _ArtistPageState extends State<ArtistPage> {
               // Albums section
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16),
+                  padding: const EdgeInsets.only(
+                    left: 16.0,
+                    right: 16,
+                    top: 16,
+                  ),
                   child: Text(
                     "Albums",
                     style: TextStyle(
