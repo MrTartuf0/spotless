@@ -20,14 +20,8 @@ class ArtistHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            dominantColor,
-            dominantColor.withOpacity(0.8),
-            dominantColor.withOpacity(0.6),
-            dominantColor.withOpacity(0.3),
-            Color(0xFF121212),
-          ],
-          stops: [0.0, 0.2, 0.4, 0.7, 1.0],
+          colors: [dominantColor, Color(0xFF121212)],
+          stops: [0.0, 1.0],
         ),
       ),
       child: Column(

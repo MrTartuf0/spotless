@@ -213,7 +213,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         children: [
           // First track skeleton
           ResultTileSkeleton(),
-
+          Gap(10),
           // Album horizontal scrollview skeleton
           HorizontalAlbumSkeleton(),
 

@@ -10,43 +10,30 @@ class ArtistTileSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section title skeleton
-          Container(
-            width: 80,
-            height: 20,
-            decoration: BoxDecoration(
-              color: Color(0x5AFFFFFF),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-
-          SizedBox(height: 16),
-
           // Artist tile with image and name
           Row(
             children: [
-              // Artist image skeleton (circular)
+              // Artist image skeleton (circular) - updated to 48x48
               Container(
-                width: 56,
-                height: 56,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: Color(0x5AFFFFFF),
                   shape: BoxShape.circle,
                 ),
               ),
 
-              SizedBox(width: 16),
-
+              SizedBox(width: 12), // Reduced spacing
               // Artist name skeleton
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 150,
-                    height: 16,
+                    width: 130, // Slightly reduced width
+                    height: 14, // Reduced height
                     decoration: BoxDecoration(
                       color: Color(0x5AFFFFFF),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(3), // Smaller radius
                     ),
                   ),
 
@@ -54,11 +41,11 @@ class ArtistTileSkeleton extends StatelessWidget {
 
                   // Artist type skeleton
                   Container(
-                    width: 60,
-                    height: 12,
+                    width: 50, // Slightly reduced width
+                    height: 10, // Reduced height
                     decoration: BoxDecoration(
                       color: Color(0x5AFFFFFF),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(3), // Smaller radius
                     ),
                   ),
                 ],
