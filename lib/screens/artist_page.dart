@@ -3,17 +3,21 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rick_spot/models/artist_album.dart';
 import 'package:rick_spot/models/artist_track.dart';
+import 'package:rick_spot/providers/audio_player_provider.dart';
+import 'package:rick_spot/providers/searchbar_provider.dart';
 import 'package:rick_spot/services/artist_service.dart';
 import 'package:rick_spot/services/color_extractor.dart';
 import 'package:rick_spot/widgets/artist_page/album_grid.dart';
 import 'package:rick_spot/widgets/artist_page/artist_header.dart';
 import 'package:rick_spot/widgets/artist_page/back_button.dart';
 import 'package:rick_spot/widgets/artist_page/best_track_item.dart';
+import 'package:rick_spot/widgets/bottom_player.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-class ArtistPage extends StatefulWidget {
+class ArtistPage extends ConsumerStatefulWidget {
   final String artistId;
   final String artistName;
   final String artistImage;
@@ -26,10 +30,10 @@ class ArtistPage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<ArtistPage> createState() => _ArtistPageState();
+  ConsumerState<ArtistPage> createState() => _ArtistPageState();
 }
 
-class _ArtistPageState extends State<ArtistPage> {
+class _ArtistPageState extends ConsumerState<ArtistPage> {
   Color _dominantColor = Color(0xff491d18); // Default color until we extract
   bool _isLoadingColor = true;
   bool _isLoadingData = true;
@@ -137,6 +141,10 @@ class _ArtistPageState extends State<ArtistPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Get the keyboard visibility state from provider
+    final searchState = ref.watch(searchStateProvider);
+    final showBottomPlayer = !searchState.isKeyboardVisible;
+
     // Determine how many tracks to display
     final displayedTracks =
         _showAllTracks
@@ -212,12 +220,14 @@ class _ArtistPageState extends State<ArtistPage> {
                         return _buildTrackSkeleton(index + 1);
                       } else {
                         if (index >= displayedTracks.length) return null;
-                        // Real data
+                        // Real data with trackId passed to TrackItem
                         return TrackItem(
                           index: index + 1,
                           title: displayedTracks[index].name,
                           imageUrl: displayedTracks[index].imageUrl,
                           duration: displayedTracks[index].duration,
+                          trackId:
+                              displayedTracks[index].id, // Pass the track ID
                         );
                       }
                     }, childCount: _isLoadingData ? 5 : displayedTracks.length),
@@ -273,8 +283,8 @@ class _ArtistPageState extends State<ArtistPage> {
                         : AlbumGrid(albums: formattedAlbums),
               ),
 
-              // Bottom padding
-              SliverToBoxAdapter(child: SizedBox(height: 100)),
+              // Bottom padding - increased to account for the bottom player
+              SliverToBoxAdapter(child: SizedBox(height: 80)),
             ],
           ),
 
@@ -309,6 +319,10 @@ class _ArtistPageState extends State<ArtistPage> {
 
           // Fixed back button
           ArtistBackButton(scrollOffset: _scrollOffset),
+
+          // Bottom player at the bottom of the screen - same as HomePage
+          if (showBottomPlayer)
+            Positioned(left: 0, right: 0, bottom: 0, child: BottomPlayer()),
         ],
       ),
     );
