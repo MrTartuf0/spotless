@@ -12,6 +12,9 @@ import 'package:rick_spot/widgets/searchbar.dart';
 import 'package:rick_spot/widgets/sheet_player.dart';
 import 'package:rick_spot/providers/audio_player_provider.dart';
 import 'package:rick_spot/providers/searchbar_provider.dart';
+import 'package:rick_spot/widgets/skeletons/artist_tile_skeleton.dart';
+import 'package:rick_spot/widgets/skeletons/horizontal_album_skeleton.dart';
+import 'package:rick_spot/widgets/skeletons/result_tile_skeleton.dart';
 
 // Debug logging
 void _debug(String message) {
@@ -107,11 +110,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       Expanded(
                         child:
                             searchResults.isLoading
-                                ? Center(
-                                  child: CircularProgressIndicator(
-                                    color: Color(0xff1BD760),
-                                  ),
-                                )
+                                ? _buildLoadingSkeletons()
                                 : searchResults.tracks.isEmpty &&
                                     searchResults.albums.isEmpty
                                 ? Center(
@@ -161,12 +160,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                                         ),
 
                                       // artist tile
-                                      ArtistTile(
-                                        artistId:
-                                            searchResults.tracks[0]['artistId'],
-                                        artistName:
-                                            searchResults.tracks[0]['artist'],
-                                      ),
+                                      if (searchResults.tracks.isNotEmpty)
+                                        ArtistTile(
+                                          artistId:
+                                              searchResults
+                                                  .tracks[0]['artistId'],
+                                          artistName:
+                                              searchResults.tracks[0]['artist'],
+                                        ),
 
                                       // Remaining tracks
                                       if (searchResults.tracks.length > 1)
@@ -199,6 +200,31 @@ class _HomePageState extends ConsumerState<HomePage> {
           // Bottom player at the bottom of the screen
           if (showBottomPlayer)
             Positioned(left: 0, right: 0, bottom: 0, child: BottomPlayer()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingSkeletons() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: 80),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // First track skeleton
+          ResultTileSkeleton(),
+
+          // Album horizontal scrollview skeleton
+          HorizontalAlbumSkeleton(),
+
+          // Artist tile skeleton
+          ArtistTileSkeleton(),
+
+          // More track skeletons
+          ResultTileSkeleton(),
+          ResultTileSkeleton(),
+          ResultTileSkeleton(),
+          ResultTileSkeleton(),
         ],
       ),
     );
