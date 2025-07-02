@@ -5,7 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:rick_spot/repositories/track_repository.dart';
 import 'package:rick_spot/services/color_extractor.dart';
 import 'package:rick_spot/services/audio_service.dart';
-import 'package:rick_spot/providers/searchbar_provider.dart'; // Add this import
+import 'package:rick_spot/providers/searchbar_provider.dart';
 
 // Audio Player State Model
 class AudioPlayerState {
@@ -24,6 +24,7 @@ class AudioPlayerState {
   final int repeatMode; // 0: off, 1: all, 2: one
   final Color dominantColor;
   final bool isExtractingColor;
+  final String currentArtistId;
 
   const AudioPlayerState({
     this.isPlaying = false,
@@ -39,6 +40,7 @@ class AudioPlayerState {
     this.isLiked = false,
     this.isShuffled = false,
     this.repeatMode = 0,
+    this.currentArtistId = '',
     this.dominantColor = const Color(0xFF7F1D1D),
     this.isExtractingColor = false,
   });
@@ -54,6 +56,7 @@ class AudioPlayerState {
     String? currentStreamUrl,
     String? currentAlbumName,
     String? currentTrackId,
+    String? currentArtistId,
     bool? isLiked,
     bool? isShuffled,
     int? repeatMode,
@@ -71,6 +74,7 @@ class AudioPlayerState {
       currentStreamUrl: currentStreamUrl ?? this.currentStreamUrl,
       currentAlbumName: currentAlbumName ?? this.currentAlbumName,
       currentTrackId: currentTrackId ?? this.currentTrackId,
+      currentArtistId: currentArtistId ?? this.currentArtistId,
       isLiked: isLiked ?? this.isLiked,
       isShuffled: isShuffled ?? this.isShuffled,
       repeatMode: repeatMode ?? this.repeatMode,
@@ -118,8 +122,51 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     });
 
     _audioService.addCompletionListener(() {
+      // First update state to reflect the track has ended
       state = state.copyWith(isPlaying: false, currentPosition: Duration.zero);
+
+      // Check repeat mode
+      if (state.repeatMode == 2) {
+        // Repeat one - play the same track again
+        playStream(fromBeginning: true);
+      } else if (state.repeatMode == 1 || state.isShuffled) {
+        // Repeat all or shuffle - play the next track
+        _playNextTrack();
+      }
+      // If repeat mode is 0 (off) and not shuffled, just stop (default behavior)
     });
+  }
+
+  // Updated method to play the next track using the current track ID
+  Future<void> _playNextTrack() async {
+    try {
+      // Don't proceed if there's no current track ID
+      if (state.currentTrackId.isEmpty) {
+        print('Cannot play next track: No current track ID');
+        return;
+      }
+
+      print(
+        'Playing next track from current track ID: ${state.currentTrackId}',
+      );
+
+      // Use the current track ID to get the next random song
+      final trackData = await _trackRepository.getNextRandomSong(
+        state.currentTrackId,
+      );
+
+      // Extract the new track ID
+      final String trackId = trackData['id'];
+
+      if (trackId.isEmpty) {
+        throw Exception('Invalid track ID received from next random song');
+      }
+
+      // Load and play the track
+      loadTrack(trackId);
+    } catch (e) {
+      print('Error playing next track: $e');
+    }
   }
 
   Future<void> extractDominantColor(String imageUrl) async {
@@ -180,6 +227,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
       // Extract needed information from track data
       final artist = trackData['artists'][0]['name'] as String;
+      final artistId = trackData['artists'][0]['id'] as String;
       final title = trackData['name'] as String;
       final imageUrl = trackData['album']['images'][0]['url'] as String;
       final albumName = trackData['album']['name'] as String;
@@ -189,6 +237,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       state = state.copyWith(
         currentTrackTitle: title,
         currentTrackArtist: artist,
+        currentArtistId: artistId, // Store the artist ID
         currentTrackImage: imageUrl,
         currentAlbumName: albumName,
         totalDuration: Duration(milliseconds: durationMs),
@@ -279,6 +328,11 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       print('Error toggling play/pause: $e');
       state = state.copyWith(isLoading: false);
     }
+  }
+
+  // Method to play next track - can be called externally
+  Future<void> playNextTrack() async {
+    await _playNextTrack();
   }
 
   Future<void> seekTo(Duration position) async {

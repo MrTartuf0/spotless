@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 
 import 'package:rick_spot/widgets/sheet_player.dart';
 import 'package:rick_spot/providers/audio_player_provider.dart';
+import 'package:rick_spot/repositories/track_repository.dart';
 
 class BottomPlayer extends ConsumerWidget {
   const BottomPlayer({super.key});
@@ -14,7 +15,7 @@ class BottomPlayer extends ConsumerWidget {
     final audioState = ref.watch(audioPlayerProvider);
     final audioNotifier = ref.read(audioPlayerProvider.notifier);
 
-    // Check if the image URL is valid
+    // Check if the track ID is valid
     if (audioState.currentTrackId.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -32,7 +33,9 @@ class BottomPlayer extends ConsumerWidget {
                 context: context,
                 isScrollControlled: true, // allow full height
                 useSafeArea: true,
-                barrierColor: audioState.dominantColor, // Use extracted color
+                barrierColor: audioState.dominantColor.withOpacity(
+                  0.5,
+                ), // Use extracted color
                 builder: (BuildContext context) {
                   return SheetPlayer();
                 },
@@ -45,7 +48,9 @@ class BottomPlayer extends ConsumerWidget {
                   context: context,
                   isScrollControlled: true, // allow full height
                   useSafeArea: true,
-                  barrierColor: audioState.dominantColor, // Use extracted color
+                  barrierColor: audioState.dominantColor.withOpacity(
+                    0.5,
+                  ), // Use extracted color
                   builder: (BuildContext context) {
                     return SheetPlayer();
                   },
@@ -97,7 +102,7 @@ class BottomPlayer extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                audioState.currentTrackId.isEmpty
+                                audioState.currentTrackTitle.isEmpty
                                     ? "Song"
                                     : audioState.currentTrackTitle,
                                 style: const TextStyle(
@@ -110,7 +115,7 @@ class BottomPlayer extends ConsumerWidget {
                               ),
                               Gap(4),
                               Text(
-                                audioState.currentTrackId.isEmpty
+                                audioState.currentTrackArtist.isEmpty
                                     ? "Artist"
                                     : audioState.currentTrackArtist,
                                 style: const TextStyle(
@@ -134,7 +139,7 @@ class BottomPlayer extends ConsumerWidget {
                                     : const Color(0x8affffff),
                           ),
                         ),
-                        const Gap(24),
+                        const Gap(16),
                         GestureDetector(
                           onTap: () => audioNotifier.togglePlayPause(),
                           child:
@@ -193,14 +198,14 @@ class BottomPlayer extends ConsumerWidget {
       ),
     );
   }
-}
 
-// Helper method to build a placeholder image
-Widget _buildPlaceholderImage() {
-  return Container(
-    height: 40,
-    width: 40,
-    color: Colors.grey[800],
-    child: const Icon(Icons.music_note, color: Colors.white),
-  );
+  // Helper method to build a placeholder image
+  Widget _buildPlaceholderImage() {
+    return Container(
+      height: 40,
+      width: 40,
+      color: Colors.grey[800],
+      child: const Icon(Icons.music_note, color: Colors.white),
+    );
+  }
 }

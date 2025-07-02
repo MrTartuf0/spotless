@@ -232,10 +232,29 @@ class SheetPlayer extends ConsumerWidget {
                             ),
                   ),
                 ),
-                SvgPicture.asset(
-                  'assets/icons/forward.svg',
-                  color: Colors.white,
-                  height: 32,
+                // Next track button with correct action
+                GestureDetector(
+                  onTap: () {
+                    // Show loading message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Finding next track...',
+                          style: TextStyle(color: Colors.black),
+                        ),
+                        backgroundColor: Color(0xff1BD760),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+
+                    // Call the playNextTrack method
+                    audioNotifier.playNextTrack();
+                  },
+                  child: SvgPicture.asset(
+                    'assets/icons/forward.svg',
+                    color: Colors.white,
+                    height: 32,
+                  ),
                 ),
                 GestureDetector(
                   onTap: () => audioNotifier.toggleRepeat(),
