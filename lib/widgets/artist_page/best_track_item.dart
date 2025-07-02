@@ -4,12 +4,14 @@ class TrackItem extends StatelessWidget {
   final int index;
   final String title;
   final String duration;
+  final String imageUrl;
 
   const TrackItem({
     Key? key,
     required this.index,
     required this.title,
     required this.duration,
+    this.imageUrl = '',
   }) : super(key: key);
 
   @override
@@ -27,10 +29,25 @@ class TrackItem extends StatelessWidget {
             ),
           ),
 
-          // Album art placeholder
+          // Album art
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            child: Container(width: 40, height: 40, color: Colors.grey[800]),
+            child:
+                imageUrl.isNotEmpty
+                    ? Image.network(
+                      imageUrl,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 40,
+                          height: 40,
+                          color: Colors.grey[800],
+                        );
+                      },
+                    )
+                    : Container(width: 40, height: 40, color: Colors.grey[800]),
           ),
 
           SizedBox(width: 16),
@@ -40,6 +57,8 @@ class TrackItem extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(fontSize: 16, color: Colors.white),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
 

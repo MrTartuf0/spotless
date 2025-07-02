@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
+import 'package:rick_spot/models/artist_album.dart';
+import 'package:rick_spot/models/artist_track.dart';
+import 'package:rick_spot/services/artist_service.dart';
 import 'package:rick_spot/services/color_extractor.dart';
 import 'package:rick_spot/widgets/artist_page/album_grid.dart';
 import 'package:rick_spot/widgets/artist_page/artist_header.dart';
 import 'package:rick_spot/widgets/artist_page/back_button.dart';
 import 'package:rick_spot/widgets/artist_page/best_track_item.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class ArtistPage extends StatefulWidget {
   final String artistId;
@@ -27,19 +32,71 @@ class ArtistPage extends StatefulWidget {
 class _ArtistPageState extends State<ArtistPage> {
   Color _dominantColor = Color(0xff491d18); // Default color until we extract
   bool _isLoadingColor = true;
+  bool _isLoadingData = true;
+  bool _hasError = false;
+  String _errorMessage = '';
+
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
   bool _showAllTracks = false; // Flag to control track visibility
+
+  List<ArtistTrack> _tracks = [];
+  List<ArtistAlbum> _albums = [];
+
+  // Placeholder data for skeleton loading
+  final List<Map<String, String>> _placeholderTracks = List.generate(
+    5,
+    (index) => {"title": "Loading track...", "duration": "0:00"},
+  );
+
+  final List<Map<String, String>> _placeholderAlbums = List.generate(
+    6,
+    (index) => {
+      "title": "Loading album...",
+      "releaseDate": "2023",
+      "trackCount": "0 tracks",
+      "image": "",
+    },
+  );
 
   @override
   void initState() {
     super.initState();
     _extractColor();
+    _fetchArtistData();
     _scrollController.addListener(() {
       setState(() {
         _scrollOffset = _scrollController.offset;
       });
     });
+  }
+
+  Future<void> _fetchArtistData() async {
+    try {
+      setState(() {
+        _isLoadingData = true;
+        _hasError = false;
+      });
+
+      final data = await ArtistService.getArtistDiscography(widget.artistId);
+
+      if (mounted) {
+        setState(() {
+          _tracks = data['tracks'] as List<ArtistTrack>;
+          _albums = data['albums'] as List<ArtistAlbum>;
+          _isLoadingData = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingData = false;
+          _hasError = true;
+          _errorMessage = 'Failed to load artist data: $e';
+        });
+        print(_errorMessage);
+      }
+    }
   }
 
   Future<void> _extractColor() async {
@@ -80,80 +137,35 @@ class _ArtistPageState extends State<ArtistPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Complete list of songs
-    final allSongs = [
-      {"title": "Can't Stop", "duration": "4:29"},
-      {"title": "Californication", "duration": "5:29"},
-      {"title": "Scar Tissue", "duration": "3:35"},
-      {"title": "Under the Bridge", "duration": "4:24"},
-      {"title": "Otherside", "duration": "4:15"},
-      // 5 more songs
-      {"title": "Snow (Hey Oh)", "duration": "5:34"},
-      {"title": "Dani California", "duration": "4:42"},
-      {"title": "By the Way", "duration": "3:37"},
-      {"title": "Dark Necessities", "duration": "5:02"},
-      {"title": "Give It Away", "duration": "4:43"},
-    ];
+    // Determine how many tracks to display
+    final displayedTracks =
+        _showAllTracks
+            ? _tracks
+            : _tracks.length > 5
+            ? _tracks.sublist(0, 5)
+            : _tracks;
 
-    // Determine how many songs to display
-    final displayedSongs = _showAllTracks ? allSongs : allSongs.sublist(0, 5);
-
-    // Album data
-    final albums = [
-      {
-        "title": "Return of the Dream Canteen",
-        "releaseDate": "14 Oct 2022",
-        "trackCount": "17 tracks",
-        "image":
-            "https://i.scdn.co/image/ab67616d0000b273f2f2f436e9e2d3a3535e7617",
-      },
-      {
-        "title": "Unlimited Love",
-        "releaseDate": "1 Apr 2022",
-        "trackCount": "17 tracks",
-        "image":
-            "https://i.scdn.co/image/ab67616d0000b273a5a0567b3d2444014d05970f",
-      },
-      {
-        "title": "The Getaway",
-        "releaseDate": "17 Jun 2016",
-        "trackCount": "13 tracks",
-        "image":
-            "https://i.scdn.co/image/ab67616d0000b273a9249ebb15eaaba3e587f97b",
-      },
-      {
-        "title": "I'm with You",
-        "releaseDate": "29 Aug 2011",
-        "trackCount": "14 tracks",
-        "image":
-            "https://i.scdn.co/image/ab67616d0000b273118f865acfba94d53bf617b3",
-      },
-      {
-        "title": "Stadium Arcadium",
-        "releaseDate": "5 May 2006",
-        "trackCount": "28 tracks",
-        "image":
-            "https://i.scdn.co/image/ab67616d0000b273a9249ebb15eaaba3e587f97b",
-      },
-      {
-        "title": "By the Way",
-        "releaseDate": "9 Jul 2002",
-        "trackCount": "16 tracks",
-        "image":
-            "https://i.scdn.co/image/ab67616d0000b273de1af2785a83cc660155a0c4",
-      },
-    ];
+    // Format albums for the grid
+    final formattedAlbums =
+        _albums.map((album) {
+          return {
+            "title": album.name,
+            "releaseDate": _formatReleaseDate(album.releaseDate),
+            "trackCount": "${album.totalTracks} tracks",
+            "image": album.imageUrl,
+          };
+        }).toList();
 
     return Scaffold(
       backgroundColor: Color(0xFF121212),
       body: Stack(
         children: [
-          // Scrollable content
+          // Always show the scrollable content with at least the artist header
           CustomScrollView(
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // Artist banner with gradient background
+              // Artist banner with gradient background - always visible
               SliverToBoxAdapter(
                 child: ArtistHeader(
                   artistName: widget.artistName,
@@ -179,51 +191,69 @@ class _ArtistPageState extends State<ArtistPage> {
 
               SliverToBoxAdapter(child: Gap(12)),
 
-              // Popular tracks list
-              SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  if (index >= displayedSongs.length) return null;
-                  return TrackItem(
-                    index: index + 1,
-                    title: displayedSongs[index]["title"]!,
-                    duration: displayedSongs[index]["duration"]!,
-                  );
-                }, childCount: displayedSongs.length),
-              ),
-
-              // See more / Show less button
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _showAllTracks = !_showAllTracks;
-                      });
-                    },
+              // Popular tracks list with skeleton loading
+              _hasError
+                  ? SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 24.0,
+                      ),
                       child: Text(
-                        _showAllTracks ? "Show less" : "See more",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xaaffffff),
-                          fontWeight: FontWeight.w600,
+                        "Failed to load tracks",
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  )
+                  : SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      if (_isLoadingData) {
+                        // Skeleton version with visible track numbers
+                        return _buildTrackSkeleton(index + 1);
+                      } else {
+                        if (index >= displayedTracks.length) return null;
+                        // Real data
+                        return TrackItem(
+                          index: index + 1,
+                          title: displayedTracks[index].name,
+                          imageUrl: displayedTracks[index].imageUrl,
+                          duration: displayedTracks[index].duration,
+                        );
+                      }
+                    }, childCount: _isLoadingData ? 5 : displayedTracks.length),
+                  ),
+
+              // See more / Show less button (only if there are more than 5 tracks)
+              _tracks.length > 5 && !_isLoadingData
+                  ? SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showAllTracks = !_showAllTracks;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16.0),
+                          child: Text(
+                            _showAllTracks ? "Show less" : "See more",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xaaffffff),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ),
+                  )
+                  : SliverToBoxAdapter(child: SizedBox(height: 16)),
 
               // Albums section
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(
-                    left: 16.0,
-                    right: 16,
-                    top: 16,
-                  ),
+                  padding: EdgeInsets.all(16),
                   child: Text(
                     "Albums",
                     style: TextStyle(
@@ -235,18 +265,187 @@ class _ArtistPageState extends State<ArtistPage> {
                 ),
               ),
 
-              // Albums grid
-              SliverToBoxAdapter(child: AlbumGrid(albums: albums)),
+              // Albums grid with skeleton loading
+              SliverToBoxAdapter(
+                child:
+                    _isLoadingData
+                        ? _buildAlbumGridSkeleton()
+                        : AlbumGrid(albums: formattedAlbums),
+              ),
 
               // Bottom padding
               SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
 
+          // Error overlay if needed
+          if (_hasError && !_isLoadingData)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.7),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red, size: 48),
+                      SizedBox(height: 16),
+                      Text(
+                        "Failed to load artist data",
+                        style: TextStyle(color: Colors.white, fontSize: 18),
+                      ),
+                      SizedBox(height: 8),
+                      TextButton(
+                        onPressed: _fetchArtistData,
+                        child: Text("Retry"),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Color(0xff1BD760),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
           // Fixed back button
           ArtistBackButton(scrollOffset: _scrollOffset),
         ],
       ),
     );
+  }
+
+  Widget _buildTrackSkeleton(int number) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 8.0),
+      child: Row(
+        children: [
+          // Track number - visible, not skeletonized
+          SizedBox(
+            width: 30,
+            child: Text(
+              "$number",
+              style: TextStyle(fontSize: 16, color: Colors.white70),
+            ),
+          ),
+
+          // Album art skeleton
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Container(width: 40, height: 40, color: Color(0x5AFFFFFF)),
+          ),
+
+          SizedBox(width: 16),
+
+          // Title skeleton
+          Expanded(
+            child: Container(
+              height: 16,
+              decoration: BoxDecoration(
+                color: Color(0x5AFFFFFF),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+
+          SizedBox(width: 16),
+
+          // Duration skeleton
+          Container(
+            width: 35,
+            height: 14,
+            decoration: BoxDecoration(
+              color: Color(0x5AFFFFFF),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAlbumGridSkeleton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.72,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 12,
+        ),
+        itemCount: 6, // Show 6 placeholder albums
+        itemBuilder: (context, index) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Album cover skeleton
+              AspectRatio(
+                aspectRatio: 1.0,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(color: Color(0x5AFFFFFF)),
+                ),
+              ),
+              SizedBox(height: 8),
+              // Album title skeleton
+              Container(
+                width: double.infinity,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Color(0x5AFFFFFF),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              SizedBox(height: 4),
+              // Album info skeleton
+              Container(
+                width: double.infinity * 0.7,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Color(0x5AFFFFFF),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatReleaseDate(String date) {
+    try {
+      final parts = date.split('-');
+      if (parts.length >= 2) {
+        final year = parts[0];
+        final month = _getMonthName(int.parse(parts[1]));
+        final day = parts.length > 2 ? parts[2] : '';
+        return day.isNotEmpty ? "$day $month $year" : "$month $year";
+      }
+      return date;
+    } catch (e) {
+      return date;
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return months[month - 1];
   }
 }

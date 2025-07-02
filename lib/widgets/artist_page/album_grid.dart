@@ -8,16 +8,16 @@ class AlbumGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: GridView.builder(
         shrinkWrap: true,
         physics: NeverScrollableScrollPhysics(),
         padding: EdgeInsets.zero, // Remove default padding
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.72, // Adjusted to account for text below image
+          childAspectRatio: 0.72,
           crossAxisSpacing: 16,
-          mainAxisSpacing: 12, // Reduced vertical spacing from 24 to 12
+          mainAxisSpacing: 12,
         ),
         itemCount: albums.length,
         itemBuilder: (context, index) {
