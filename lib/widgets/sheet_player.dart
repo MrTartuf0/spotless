@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:gap/gap.dart';
-import 'package:rick_spot/providers/audio_player_provider.dart';
+import 'package:rick_spot/providers/audio_player/audio_player_provider.dart';
 
 class SheetPlayer extends ConsumerWidget {
-  const SheetPlayer({Key? key}) : super(key: key);
+  const SheetPlayer({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -232,14 +232,19 @@ class SheetPlayer extends ConsumerWidget {
                             ),
                   ),
                 ),
+
                 // Next track button with correct action
+                // In the SheetPlayer, let's add a small indicator for when next track is prefetching
+                // At the Next Track button section:
                 GestureDetector(
                   onTap: () {
                     // Show loading message
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Finding next track...',
+                          audioState.nextTrackId.isNotEmpty
+                              ? 'Playing next track: ${audioState.nextTrackTitle}'
+                              : 'Finding next track...',
                           style: TextStyle(color: Colors.black),
                         ),
                         backgroundColor: Color(0xff1BD760),
@@ -250,12 +255,44 @@ class SheetPlayer extends ConsumerWidget {
                     // Call the playNextTrack method
                     audioNotifier.playNextTrack();
                   },
-                  child: SvgPicture.asset(
-                    'assets/icons/forward.svg',
-                    color: Colors.white,
-                    height: 32,
+                  child: Stack(
+                    children: [
+                      SvgPicture.asset(
+                        'assets/icons/forward.svg',
+                        color: Colors.white,
+                        height: 32,
+                      ),
+                      if (audioState.isNextTrackLoading)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Color(0xff1BD760),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      if (audioState.nextTrackId.isNotEmpty &&
+                          !audioState.isNextTrackLoading)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
+
                 GestureDetector(
                   onTap: () => audioNotifier.toggleRepeat(),
                   child: Stack(

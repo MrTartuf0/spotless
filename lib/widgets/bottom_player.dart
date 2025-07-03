@@ -4,8 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 
 import 'package:rick_spot/widgets/sheet_player.dart';
-import 'package:rick_spot/providers/audio_player_provider.dart';
-import 'package:rick_spot/repositories/track_repository.dart';
+import 'package:rick_spot/providers/audio_player/audio_player_provider.dart';
 
 class BottomPlayer extends ConsumerWidget {
   const BottomPlayer({super.key});

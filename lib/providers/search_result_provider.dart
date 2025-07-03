@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rick_spot/repositories/search_repository.dart';
 import 'package:rick_spot/widgets/horizontal_album_scroller.dart';
-import 'package:rick_spot/widgets/result_tile.dart';
 
 // Search state model
 class SearchResultsState {

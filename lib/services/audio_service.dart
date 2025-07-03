@@ -5,12 +5,13 @@ import 'dart:io';
 import 'dart:async';
 
 class AudioService {
-  // Singleton instance
+  // Singleton pattern
   static final AudioService _instance = AudioService._internal();
   factory AudioService() => _instance;
-
-  // Private constructor
   AudioService._internal();
+
+  final AudioPlayer _player = AudioPlayer();
+  PlayerState get currentState => _player.state;
 
   // Platform-specific players
   AudioPlayer? _iosAudioPlayer;
@@ -217,8 +218,11 @@ class AudioService {
     _durationListeners.add(listener);
   }
 
-  void addCompletionListener(Function() listener) {
-    _completionListeners.add(listener);
+  void addCompletionListener(VoidCallback callback) {
+    _player.onPlayerComplete.listen((_) {
+      print("Audio player completion event fired");
+      callback();
+    });
   }
 
   // Play a URL - completely resets the player for each new track
@@ -462,20 +466,5 @@ class AudioService {
 
     // Release resources
     await _releaseResources();
-  }
-
-  // Current state
-  PlayerState get currentState {
-    if (!_isInitialized) return PlayerState.stopped;
-
-    if (_useAndroidPlayer) {
-      if (_androidAudioPlayer == null) return PlayerState.stopped;
-      return _androidAudioPlayer!.playing
-          ? PlayerState.playing
-          : PlayerState.stopped;
-    } else {
-      if (_iosAudioPlayer == null) return PlayerState.stopped;
-      return _iosAudioPlayer!.state;
-    }
   }
 }

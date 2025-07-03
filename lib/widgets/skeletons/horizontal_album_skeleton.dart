@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class HorizontalAlbumSkeleton extends StatelessWidget {
-  const HorizontalAlbumSkeleton({Key? key}) : super(key: key);
+  const HorizontalAlbumSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {

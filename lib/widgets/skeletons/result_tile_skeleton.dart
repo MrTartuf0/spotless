@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ResultTileSkeleton extends StatelessWidget {
-  const ResultTileSkeleton({Key? key}) : super(key: key);
+  const ResultTileSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +17,7 @@ class ResultTileSkeleton extends StatelessWidget {
 
           SizedBox(width: 12), // Reduced spacing to keep proportions
           // Track info skeleton - adjusted width calculation
-          Container(
+          SizedBox(
             width:
                 MediaQuery.of(context).size.width * 0.5 -
                 48 -

@@ -13,7 +13,7 @@ void _debug(String message) {
 }
 
 class Searchbar extends ConsumerStatefulWidget {
-  const Searchbar({Key? key}) : super(key: key);
+  const Searchbar({super.key});
 
   @override
   SearchbarState createState() => SearchbarState();
@@ -151,7 +151,7 @@ class SearchbarState extends ConsumerState<Searchbar> {
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Color(0x20000000),
                       blurRadius: 4,
                       offset: Offset(0, 2),
                     ),

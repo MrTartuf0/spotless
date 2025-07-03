@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
-import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rick_spot/models/artist_album.dart';
 import 'package:rick_spot/models/artist_track.dart';
-import 'package:rick_spot/providers/audio_player_provider.dart';
 import 'package:rick_spot/providers/searchbar_provider.dart';
 import 'package:rick_spot/services/artist_service.dart';
 import 'package:rick_spot/services/color_extractor.dart';
@@ -15,7 +11,6 @@ import 'package:rick_spot/widgets/artist_page/artist_header.dart';
 import 'package:rick_spot/widgets/artist_page/back_button.dart';
 import 'package:rick_spot/widgets/artist_page/best_track_item.dart';
 import 'package:rick_spot/widgets/bottom_player.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 
 class ArtistPage extends ConsumerStatefulWidget {
   final String artistId;
@@ -23,11 +18,11 @@ class ArtistPage extends ConsumerStatefulWidget {
   final String artistImage;
 
   const ArtistPage({
-    Key? key,
+    super.key,
     required this.artistId,
     required this.artistName,
     this.artistImage = '',
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<ArtistPage> createState() => _ArtistPageState();

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ArtistTileSkeleton extends StatelessWidget {
-  const ArtistTileSkeleton({Key? key}) : super(key: key);
+  const ArtistTileSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {

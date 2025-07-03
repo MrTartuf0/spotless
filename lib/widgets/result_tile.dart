@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:gap/gap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:rick_spot/providers/audio_player_provider.dart';
+import 'package:rick_spot/providers/audio_player/audio_player_provider.dart';
 import 'package:rick_spot/providers/searchbar_provider.dart';
 
 class ResultTile extends ConsumerWidget {

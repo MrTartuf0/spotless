@@ -19,10 +19,7 @@ class ArtistBackButton extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color:
-                scrollOffset > 200
-                    ? Colors.black.withOpacity(0.5)
-                    : Colors.transparent,
+            color: scrollOffset > 200 ? Color(0x7F000000) : Colors.transparent,
             shape: BoxShape.circle,
           ),
           child: Center(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
 import 'dart:async';
-import 'dart:math';
 
 // Color extractor class optimized for album artwork
 class ColorExtractor {

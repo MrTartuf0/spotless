@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:rick_spot/providers/search_result_provider.dart';
 import 'package:rick_spot/widgets/artist_tile.dart';
@@ -9,8 +7,6 @@ import 'package:rick_spot/widgets/bottom_player.dart';
 import 'package:rick_spot/widgets/horizontal_album_scroller.dart';
 import 'package:rick_spot/widgets/result_tile.dart';
 import 'package:rick_spot/widgets/searchbar.dart';
-import 'package:rick_spot/widgets/sheet_player.dart';
-import 'package:rick_spot/providers/audio_player_provider.dart';
 import 'package:rick_spot/providers/searchbar_provider.dart';
 import 'package:rick_spot/widgets/skeletons/artist_tile_skeleton.dart';
 import 'package:rick_spot/widgets/skeletons/horizontal_album_skeleton.dart';
