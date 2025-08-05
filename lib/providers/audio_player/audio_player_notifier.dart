@@ -210,31 +210,29 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
   Future<void> _prefetchNextTrack() async {
     try {
-      // Don't proceed if there's no current track ID or we're already loading next track
-      if (state.currentTrackId.isEmpty || state.isNextTrackLoading) {
+      // Don't proceed if there's no current track ID
+      if (state.currentTrackId.isEmpty) {
         return;
       }
 
-      // Set loading state for next track
-      state = state.copyWith(isNextTrackLoading: true);
+      print('Fetching next track to add to history');
 
       // Fetch the next track
       final nextTrackInfo = await _queueService.fetchNextTrack(
         state.currentTrackId,
       );
 
-      // Update state with prefetched track info
-      state = state.copyWith(
-        nextTrackId: nextTrackInfo['id'],
-        nextTrackTitle: nextTrackInfo['title'],
-        nextTrackArtist: nextTrackInfo['artist'],
-        nextTrackImage: nextTrackInfo['imageUrl'],
-        nextStreamUrl: nextTrackInfo['streamUrl'],
-        isNextTrackLoading: false,
-      );
+      // Only add to history if it's not already there
+      if (!state.trackIdHistory.contains(nextTrackInfo['id'])) {
+        state = state.copyWith(
+          trackIdHistory: [...state.trackIdHistory, nextTrackInfo['id']],
+        );
+        print('Added track ${nextTrackInfo['id']} to history');
+      } else {
+        print('Track ${nextTrackInfo['id']} already exists in history');
+      }
     } catch (e) {
-      print('Error prefetching next track: $e');
-      state = state.copyWith(isNextTrackLoading: false);
+      print('Error fetching next track: $e');
     }
   }
 
@@ -357,7 +355,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     }
   }
 
-  Future<void> loadTrack(String trackId) async {
+  Future<void> loadTrack(String trackId, {bool addToHistory = true}) async {
     try {
       // Ensure keyboard is hidden and bottom player is visible
       if (_ref.read(searchStateProvider.notifier).state.isKeyboardVisible) {
@@ -373,7 +371,13 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       _completionService.cancelWatchdogTimer();
       _completionService.setCompletionHandled(false);
 
-      // Clear next track data if we're manually loading a new track
+      // Create a new track ID history, adding the trackId only if addToHistory is true
+      final updatedTrackIdHistory =
+          addToHistory
+              ? [...state.trackIdHistory, trackId]
+              : state.trackIdHistory;
+      print("updated track history");
+      print(updatedTrackIdHistory);
       state = state.copyWith(
         isLoading: true,
         currentTrackId: trackId, // Update track ID immediately
@@ -385,6 +389,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
         nextTrackArtist: '',
         nextTrackImage: '',
         nextStreamUrl: '',
+        trackIdHistory: updatedTrackIdHistory, // Update the track ID history
       );
 
       print('Loading track: $trackId');
@@ -507,15 +512,43 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   }
 
   Future<void> playNextTrack() async {
-    if (state.nextTrackId.isNotEmpty) {
-      await _playPrefetchedTrack();
-    } else if (!state.isNextTrackLoading) {
-      // If we don't have a prefetched track and aren't currently loading one
+    // Check if there's a track after the current one in trackIdHistory
+    if (state.currentTrackId.isNotEmpty && state.trackIdHistory.isNotEmpty) {
+      final currentIndex = state.trackIdHistory.indexOf(state.currentTrackId);
+      if (currentIndex != -1 &&
+          currentIndex < state.trackIdHistory.length - 1) {
+        // There's a track after the current one in history
+        final nextTrackId = state.trackIdHistory[currentIndex + 1];
+        print('Playing next track from history: $nextTrackId');
+        await loadTrack(nextTrackId);
+        return;
+      }
+    }
+
+    // If no track in history, fetch a new one
+    if (!state.isNextTrackLoading) {
+      print('Fetching next track as none found in history');
       await _playNextTrack();
     } else {
-      // If we're in the process of loading the next track, show a message
       print('Next track is still loading, please wait...');
     }
+  }
+
+  Future<void> playPreviousTrack() async {
+    // Check if there's a track before the current one in trackIdHistory
+    if (state.currentTrackId.isNotEmpty && state.trackIdHistory.isNotEmpty) {
+      final currentIndex = state.trackIdHistory.indexOf(state.currentTrackId);
+      if (currentIndex > 0) {
+        // There’s a track before the current one in history
+        final previousTrackId = state.trackIdHistory[currentIndex - 1];
+        print('Playing previous track from history: $previousTrackId');
+        await loadTrack(previousTrackId, addToHistory: false);
+        return;
+      }
+    }
+
+    // No previous track found in history
+    print('No previous track available in history');
   }
 
   Future<void> seekTo(Duration position) async {

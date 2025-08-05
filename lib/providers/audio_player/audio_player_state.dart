@@ -27,7 +27,7 @@ class AudioPlayerState {
   final String nextStreamUrl;
   final bool isNextTrackLoading;
   final bool isTrackEnding;
-
+  final List<String> trackIdHistory;
   const AudioPlayerState({
     this.isPlaying = false,
     this.isLoading = false,
@@ -52,6 +52,7 @@ class AudioPlayerState {
     this.nextStreamUrl = '',
     this.isNextTrackLoading = false,
     this.isTrackEnding = false,
+    this.trackIdHistory = const [],
   });
 
   AudioPlayerState copyWith({
@@ -78,6 +79,7 @@ class AudioPlayerState {
     String? nextStreamUrl,
     bool? isNextTrackLoading,
     bool? isTrackEnding,
+    List<String>? trackIdHistory,
   }) {
     return AudioPlayerState(
       isPlaying: isPlaying ?? this.isPlaying,
@@ -103,6 +105,7 @@ class AudioPlayerState {
       nextStreamUrl: nextStreamUrl ?? this.nextStreamUrl,
       isNextTrackLoading: isNextTrackLoading ?? this.isNextTrackLoading,
       isTrackEnding: isTrackEnding ?? this.isTrackEnding,
+      trackIdHistory: trackIdHistory ?? this.trackIdHistory,
     );
   }
 
