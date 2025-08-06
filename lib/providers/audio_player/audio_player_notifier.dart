@@ -55,13 +55,8 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     await _playbackService.stop();
 
     // Choose the appropriate method based on what's available
-    if (state.nextTrackId.isNotEmpty) {
-      print("🚀 Starting prefetched track: ${state.nextTrackTitle}");
-      await _playPrefetchedTrack();
-    } else {
-      print("🚀 Finding and playing next track...");
-      await _playNextTrack();
-    }
+    print("🚀 Finding and playing next track...");
+    await _playNextTrack();
   }
 
   void _initializeListeners() {
@@ -222,8 +217,8 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
         state.currentTrackId,
       );
 
-      // Only add to history if it's not already there
       if (!state.trackIdHistory.contains(nextTrackInfo['id'])) {
+        // Add to the END of the history array
         state = state.copyWith(
           trackIdHistory: [...state.trackIdHistory, nextTrackInfo['id']],
         );
@@ -233,72 +228,6 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       }
     } catch (e) {
       print('Error fetching next track: $e');
-    }
-  }
-
-  Future<void> _playPrefetchedTrack() async {
-    try {
-      // Don't proceed if there's no prefetched track
-      if (state.nextTrackId.isEmpty) {
-        print('No prefetched track available, fetching a new one');
-        await _playNextTrack();
-        return;
-      }
-
-      print('Playing prefetched track: ${state.nextTrackTitle}');
-
-      // Stop current playback and cancel any end timers
-      await _playbackService.stop();
-      _completionService.cancelTrackEndTimer();
-      _completionService.cancelWatchdogTimer();
-      _completionService.setCompletionHandled(false);
-
-      // Save prefetched track info
-      final prefetchedId = state.nextTrackId;
-      final prefetchedTitle = state.nextTrackTitle;
-      final prefetchedArtist = state.nextTrackArtist;
-      final prefetchedImage = state.nextTrackImage;
-      final prefetchedUrl = state.nextStreamUrl;
-
-      // Set loading state and transfer next track info to current
-      state = state.copyWith(
-        isLoading: true,
-        currentTrackId: prefetchedId,
-        currentTrackTitle: prefetchedTitle,
-        currentTrackArtist: prefetchedArtist,
-        currentTrackImage: prefetchedImage,
-        currentStreamUrl: prefetchedUrl,
-        // Clear next track info
-        nextTrackId: '',
-        nextTrackTitle: '',
-        nextTrackArtist: '',
-        nextTrackImage: '',
-        nextStreamUrl: '',
-        // Reset position and end flags
-        currentPosition: Duration.zero,
-        isPlaying: false,
-        isTrackEnding: false,
-      );
-
-      // Extract dominant color from new album art
-      await extractDominantColor(prefetchedImage);
-
-      // Start playing the prefetched track
-      await _playbackService.play(prefetchedUrl, fromBeginning: true);
-
-      // Update loading state
-      state = state.copyWith(isLoading: false);
-
-      // Start prefetching the next track immediately
-      Future.delayed(Duration(seconds: 2), () {
-        _prefetchNextTrack();
-      });
-    } catch (e) {
-      print('Error playing prefetched track: $e');
-      state = state.copyWith(isLoading: false);
-
-      // Try fallback to regular next track method
-      await _playNextTrack();
     }
   }
 
@@ -376,8 +305,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
           addToHistory
               ? [...state.trackIdHistory, trackId]
               : state.trackIdHistory;
-      print("updated track history");
-      print(updatedTrackIdHistory);
+
       state = state.copyWith(
         isLoading: true,
         currentTrackId: trackId, // Update track ID immediately
@@ -393,6 +321,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       );
 
       print('Loading track: $trackId');
+      print(updatedTrackIdHistory);
 
       // Get track data using the queue service
       final trackInfo = await _queueService.getTrackData(trackId);

@@ -230,21 +230,19 @@ class AudioService {
     try {
       print('Playing URL: $url (fromBeginning: $fromBeginning)');
 
-      // If the URL is different or we're starting from beginning, do a full reset
-      bool needsReset = url != _currentUrl || fromBeginning;
-
-      if (needsReset) {
-        print('URL changed or starting from beginning, doing full reset');
+      // Reset if URL changed or forced from beginning
+      if (url != _currentUrl || fromBeginning) {
+        print('Resetting player for new URL or beginning playback');
         await _fullReset();
         _currentUrl = url;
       }
 
-      // Make sure we're initialized
+      // Ensure player is initialized
       if (!_isInitialized) {
         await _initialize();
       }
 
-      // Get the position to start from
+      // Always start from beginning and seek to 0 to ensure consistent behavior
       final position = fromBeginning ? Duration.zero : _currentPosition;
 
       if (_useAndroidPlayer) {
@@ -253,34 +251,27 @@ class AudioService {
           await _initialize();
         }
 
-        // Always set the URL when playing a track
         print('Setting URL on Android player: $url');
-        await _androidAudioPlayer!.setUrl(url);
+        await _androidAudioPlayer!.setUrl(url, initialPosition: position);
 
-        // Seek if needed
-        if (!fromBeginning && position > Duration.zero) {
-          print('Seeking to position: ${position.inSeconds} seconds');
-          await _androidAudioPlayer!.seek(position);
-        }
-
-        // Start playback
         print('Starting Android playback');
         await _androidAudioPlayer!.play();
+
+        // Explicit seek to ensure position is respected (especially for HLS)
+        print('Seeking to position: ${position.inSeconds} seconds');
+        await _androidAudioPlayer!.seek(position);
       } else {
         if (_iosAudioPlayer == null) {
           print('iOS player is null, initializing');
           await _initialize();
         }
 
-        // Always play with the URL for iOS
         print('Starting iOS playback with URL: $url');
         await _iosAudioPlayer!.play(UrlSource(url));
 
-        // Seek if needed
-        if (!fromBeginning && position > Duration.zero) {
-          print('Seeking to position: ${position.inSeconds} seconds');
-          await _iosAudioPlayer!.seek(position);
-        }
+        // Explicit seek to ensure position is respected
+        print('Seeking to position: ${position.inSeconds} seconds');
+        await _iosAudioPlayer!.seek(position);
       }
     } catch (e) {
       print('Error playing audio: $e');

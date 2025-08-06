@@ -146,13 +146,21 @@ class SheetPlayer extends ConsumerWidget {
                     trackHeight: 4,
                   ),
                   child: Slider(
-                    value: audioState.currentPosition.inSeconds.toDouble(),
-                    max: audioState.totalDuration.inSeconds.toDouble().clamp(
-                      1.0,
-                      double.infinity,
-                    ),
+                    value:
+                        audioState.totalDuration.inSeconds > 0
+                            ? (audioState.currentPosition.inSeconds /
+                                    audioState.totalDuration.inSeconds)
+                                .clamp(0.0, 1.0)
+                            : 0.0,
+                    min: 0.0,
+                    max: 1.0,
                     onChanged: (value) {
-                      audioNotifier.seekTo(Duration(seconds: value.toInt()));
+                      final newPosition = Duration(
+                        seconds:
+                            (value * audioState.totalDuration.inSeconds)
+                                .toInt(),
+                      );
+                      audioNotifier.seekTo(newPosition);
                     },
                   ),
                 ),

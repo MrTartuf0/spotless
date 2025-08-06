@@ -183,7 +183,7 @@ class BottomPlayer extends ConsumerWidget {
               // filled music track progress bar
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
-                widthFactor: audioState.progress,
+                widthFactor: 0.0,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
