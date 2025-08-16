@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 
-import 'package:rick_spot/widgets/sheet_player.dart';
-import 'package:rick_spot/providers/audio_player/audio_player_provider.dart';
+import 'package:spotACrack/widgets/sheet_player.dart';
+import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
 
 class BottomPlayer extends ConsumerWidget {
   const BottomPlayer({super.key});
@@ -183,7 +183,7 @@ class BottomPlayer extends ConsumerWidget {
               // filled music track progress bar
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
-                widthFactor: 0.0,
+                widthFactor: audioState.progress,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,

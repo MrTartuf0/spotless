@@ -6,7 +6,7 @@
 
     <application
         android:usesCleartextTraffic="true"
-        android:label="rick_spot"
+        android:label="spotACrack"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

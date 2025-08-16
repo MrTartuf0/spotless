@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:rick_spot/models/artist_album.dart';
-import 'package:rick_spot/models/artist_track.dart';
+import 'package:spotACrack/models/artist_album.dart';
+import 'package:spotACrack/models/artist_track.dart';
 
 class ArtistService {
   static final Dio _dio = Dio(

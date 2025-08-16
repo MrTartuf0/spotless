@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
-import 'package:rick_spot/providers/search_result_provider.dart';
-import 'package:rick_spot/widgets/artist_tile.dart';
-import 'package:rick_spot/widgets/bottom_player.dart';
-import 'package:rick_spot/widgets/horizontal_album_scroller.dart';
-import 'package:rick_spot/widgets/result_tile.dart';
-import 'package:rick_spot/widgets/searchbar.dart';
-import 'package:rick_spot/providers/searchbar_provider.dart';
-import 'package:rick_spot/widgets/skeletons/artist_tile_skeleton.dart';
-import 'package:rick_spot/widgets/skeletons/horizontal_album_skeleton.dart';
-import 'package:rick_spot/widgets/skeletons/result_tile_skeleton.dart';
+import 'package:spotACrack/providers/search_result_provider.dart';
+import 'package:spotACrack/widgets/artist_tile.dart';
+import 'package:spotACrack/widgets/bottom_player.dart';
+import 'package:spotACrack/widgets/horizontal_album_scroller.dart';
+import 'package:spotACrack/widgets/result_tile.dart';
+import 'package:spotACrack/widgets/searchbar.dart';
+import 'package:spotACrack/providers/searchbar_provider.dart';
+import 'package:spotACrack/widgets/skeletons/artist_tile_skeleton.dart';
+import 'package:spotACrack/widgets/skeletons/horizontal_album_skeleton.dart';
+import 'package:spotACrack/widgets/skeletons/result_tile_skeleton.dart';
 
 // Debug logging
 void _debug(String message) {

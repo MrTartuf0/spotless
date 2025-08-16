@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:rick_spot/providers/searchbar_provider.dart';
+import 'package:spotACrack/providers/searchbar_provider.dart';
 
 class HorizontalAlbumScroller extends ConsumerWidget {
   final List<Album> albums;

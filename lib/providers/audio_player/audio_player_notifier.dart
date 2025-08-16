@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
-import 'package:rick_spot/providers/audio_player/audio_player_state.dart';
-import 'package:rick_spot/providers/audio_player/track_completion_service.dart';
-import 'package:rick_spot/providers/audio_player/track_queue_service.dart';
-import 'package:rick_spot/providers/audio_player/track_playback_service.dart';
-import 'package:rick_spot/repositories/track_repository.dart';
-import 'package:rick_spot/services/color_extractor.dart';
-import 'package:rick_spot/services/audio_service.dart';
-import 'package:rick_spot/providers/searchbar_provider.dart';
+import 'package:spotACrack/providers/audio_player/audio_player_state.dart';
+import 'package:spotACrack/providers/audio_player/track_completion_service.dart';
+import 'package:spotACrack/providers/audio_player/track_queue_service.dart';
+import 'package:spotACrack/providers/audio_player/track_playback_service.dart';
+import 'package:spotACrack/repositories/track_repository.dart';
+import 'package:spotACrack/services/color_extractor.dart';
+import 'package:spotACrack/services/audio_service.dart';
+import 'package:spotACrack/providers/searchbar_provider.dart';
 
 class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   final TrackRepository _trackRepository;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:rick_spot/providers/audio_player/audio_player_provider.dart';
-import 'package:rick_spot/providers/searchbar_provider.dart';
+import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
+import 'package:spotACrack/providers/searchbar_provider.dart';
 
 class TrackItem extends ConsumerWidget {
   final int index;

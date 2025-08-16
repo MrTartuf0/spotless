@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:rick_spot/models/artist_album.dart';
-import 'package:rick_spot/models/artist_track.dart';
-import 'package:rick_spot/providers/searchbar_provider.dart';
-import 'package:rick_spot/services/artist_service.dart';
-import 'package:rick_spot/services/color_extractor.dart';
-import 'package:rick_spot/widgets/artist_page/album_grid.dart';
-import 'package:rick_spot/widgets/artist_page/artist_header.dart';
-import 'package:rick_spot/widgets/artist_page/back_button.dart';
-import 'package:rick_spot/widgets/artist_page/best_track_item.dart';
-import 'package:rick_spot/widgets/bottom_player.dart';
+import 'package:spotACrack/models/artist_album.dart';
+import 'package:spotACrack/models/artist_track.dart';
+import 'package:spotACrack/providers/searchbar_provider.dart';
+import 'package:spotACrack/services/artist_service.dart';
+import 'package:spotACrack/services/color_extractor.dart';
+import 'package:spotACrack/widgets/artist_page/album_grid.dart';
+import 'package:spotACrack/widgets/artist_page/artist_header.dart';
+import 'package:spotACrack/widgets/artist_page/back_button.dart';
+import 'package:spotACrack/widgets/artist_page/best_track_item.dart';
+import 'package:spotACrack/widgets/bottom_player.dart';
 
 class ArtistPage extends ConsumerStatefulWidget {
   final String artistId;

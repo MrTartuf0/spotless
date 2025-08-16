@@ -1,7 +1,7 @@
 // lib/providers/track_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:rick_spot/models/track_model.dart';
-import 'package:rick_spot/repositories/track_repository.dart';
+import 'package:spotACrack/models/track_model.dart';
+import 'package:spotACrack/repositories/track_repository.dart';
 
 final currentTrackProvider = StateProvider<String>((ref) {
   // Default track ID

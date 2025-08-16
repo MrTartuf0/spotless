@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rick_spot/screens/homepage.dart';
-import 'package:rick_spot/screens/artist_page.dart';
+import 'package:spotACrack/screens/homepage.dart';
+import 'package:spotACrack/screens/artist_page.dart';
 
 // Define a provider for the router
 final routerProvider = Provider<GoRouter>((ref) {

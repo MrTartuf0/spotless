@@ -1,4 +1,4 @@
-package com.example.rick_spot
+package com.example.spotACrack
 
 import io.flutter.embedding.android.FlutterActivity
 

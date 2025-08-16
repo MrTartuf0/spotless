@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:gap/gap.dart';
-import 'package:rick_spot/providers/audio_player/audio_player_provider.dart';
+import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
 
 class SheetPlayer extends ConsumerWidget {
   const SheetPlayer({super.key});
@@ -146,21 +146,10 @@ class SheetPlayer extends ConsumerWidget {
                     trackHeight: 4,
                   ),
                   child: Slider(
-                    value:
-                        audioState.totalDuration.inSeconds > 0
-                            ? (audioState.currentPosition.inSeconds /
-                                    audioState.totalDuration.inSeconds)
-                                .clamp(0.0, 1.0)
-                            : 0.0,
-                    min: 0.0,
-                    max: 1.0,
+                    value: audioState.currentPosition.inSeconds.toDouble(),
+                    max: 300.0,
                     onChanged: (value) {
-                      final newPosition = Duration(
-                        seconds:
-                            (value * audioState.totalDuration.inSeconds)
-                                .toInt(),
-                      );
-                      audioNotifier.seekTo(newPosition);
+                      audioNotifier.seekTo(Duration(seconds: value.toInt()));
                     },
                   ),
                 ),

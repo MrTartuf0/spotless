@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:gap/gap.dart';
-import 'package:rick_spot/providers/search_result_provider.dart';
-import 'package:rick_spot/providers/searchbar_provider.dart';
+import 'package:spotACrack/providers/search_result_provider.dart';
+import 'package:spotACrack/providers/searchbar_provider.dart';
 import 'dart:async';
 
 // Debug logging

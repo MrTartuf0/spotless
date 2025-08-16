@@ -1,7 +1,7 @@
 // lib/providers/audio_player/track_playback_service.dart
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import 'package:rick_spot/services/audio_service.dart';
+import 'package:spotACrack/services/audio_service.dart';
 
 class TrackPlaybackService {
   final AudioService _audioService;

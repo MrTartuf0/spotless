@@ -1,5 +1,5 @@
 // lib/providers/audio_player/track_queue_service.dart
-import 'package:rick_spot/repositories/track_repository.dart';
+import 'package:spotACrack/repositories/track_repository.dart';
 
 class TrackQueueService {
   final TrackRepository _trackRepository;

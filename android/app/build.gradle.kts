@@ -7,7 +7,7 @@ plugins {
 
 android {
     ndkVersion = "27.0.12077973"
-    namespace = "com.example.rick_spot"
+    namespace = "com.example.spotACrack"
     compileSdk = flutter.compileSdkVersion
 
     compileOptions {
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.rick_spot"
+        applicationId = "com.example.spotACrack"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
