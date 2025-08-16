@@ -147,7 +147,7 @@ class SheetPlayer extends ConsumerWidget {
                   ),
                   child: Slider(
                     value: audioState.currentPosition.inSeconds.toDouble(),
-                    max: 300.0,
+                    max: audioState.totalDuration.inSeconds.toDouble(),
                     onChanged: (value) {
                       audioNotifier.seekTo(Duration(seconds: value.toInt()));
                     },
