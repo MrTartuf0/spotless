@@ -33,7 +33,6 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       audioService: AudioService(),
       onPlayerStateChanged: _handlePlayerStateChanged,
       onPositionChanged: _handlePositionChanged,
-      onDurationChanged: _handleDurationChanged,
       onTrackCompleted: _handleTrackCompleted,
     );
 
@@ -129,14 +128,6 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
         position,
       );
     }
-  }
-
-  void _handleDurationChanged(Duration duration) {
-    state = state.copyWith(totalDuration: duration);
-    print("Track duration set: ${_playbackService.formatTime(duration)}");
-
-    // Set up watchdog timer when we know the duration
-    _completionService.setupWatchdogTimer(duration, state.isPlaying);
   }
 
   void _handleTrackCompleted() {

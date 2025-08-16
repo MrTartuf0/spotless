@@ -9,14 +9,12 @@ class TrackPlaybackService {
   // Callbacks
   final void Function(PlayerState) onPlayerStateChanged;
   final void Function(Duration) onPositionChanged;
-  final void Function(Duration) onDurationChanged;
   final VoidCallback onTrackCompleted;
 
   TrackPlaybackService({
     required AudioService audioService,
     required this.onPlayerStateChanged,
     required this.onPositionChanged,
-    required this.onDurationChanged,
     required this.onTrackCompleted,
   }) : _audioService = audioService {
     _initListeners();
@@ -27,7 +25,6 @@ class TrackPlaybackService {
   void _initListeners() {
     _audioService.addPlayerStateListener(onPlayerStateChanged);
     _audioService.addPositionListener(onPositionChanged);
-    _audioService.addDurationListener(onDurationChanged);
     _audioService.addCompletionListener(onTrackCompleted);
   }
 
