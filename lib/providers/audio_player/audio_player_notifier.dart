@@ -97,10 +97,11 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
     final progress = state.progress;
 
-    // Check if we should prefetch the next track
+    final currentIndex = state.trackIdHistory.indexOf(state.currentTrackId);
+
     if (_completionService.shouldPrefetch(progress) &&
-        state.nextTrackId.isEmpty &&
-        !state.isNextTrackLoading) {
+        state.trackIdHistory[currentIndex + 1].isEmpty &&
+        !state.isLoading) {
       _prefetchNextTrack();
     }
 
@@ -303,11 +304,6 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
         isPlaying: false, // Reset playing state
         currentPosition: Duration.zero, // Reset position
         isTrackEnding: false, // Reset end flag
-        nextTrackId: '', // Clear next track data
-        nextTrackTitle: '',
-        nextTrackArtist: '',
-        nextTrackImage: '',
-        nextStreamUrl: '',
         trackIdHistory: updatedTrackIdHistory, // Update the track ID history
       );
 
@@ -446,7 +442,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     }
 
     // If no track in history, fetch a new one
-    if (!state.isNextTrackLoading) {
+    if (!state.isLoading) {
       print('Fetching next track as none found in history');
       await _playNextTrack();
     } else {

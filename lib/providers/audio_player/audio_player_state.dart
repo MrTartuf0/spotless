@@ -20,12 +20,13 @@ class AudioPlayerState {
   final String currentArtistId;
 
   // Fields for prefetched next track
-  final String nextTrackId;
-  final String nextTrackTitle;
-  final String nextTrackArtist;
-  final String nextTrackImage;
-  final String nextStreamUrl;
-  final bool isNextTrackLoading;
+  //final String nextTrackId;
+  //final String nextTrackTitle;
+  //final String nextTrackArtist;
+  //final String nextTrackImage;
+  //final String nextStreamUrl;
+  //final bool isNextTrackLoading;
+
   final bool isTrackEnding;
   final List<String> trackIdHistory;
   const AudioPlayerState({
@@ -45,12 +46,6 @@ class AudioPlayerState {
     this.currentArtistId = '',
     this.dominantColor = const Color(0xFF7F1D1D),
     this.isExtractingColor = false,
-    this.nextTrackId = '',
-    this.nextTrackTitle = '',
-    this.nextTrackArtist = '',
-    this.nextTrackImage = '',
-    this.nextStreamUrl = '',
-    this.isNextTrackLoading = false,
     this.isTrackEnding = false,
     this.trackIdHistory = const [],
   });
@@ -72,12 +67,6 @@ class AudioPlayerState {
     int? repeatMode,
     Color? dominantColor,
     bool? isExtractingColor,
-    String? nextTrackId,
-    String? nextTrackTitle,
-    String? nextTrackArtist,
-    String? nextTrackImage,
-    String? nextStreamUrl,
-    bool? isNextTrackLoading,
     bool? isTrackEnding,
     List<String>? trackIdHistory,
   }) {
@@ -98,12 +87,6 @@ class AudioPlayerState {
       repeatMode: repeatMode ?? this.repeatMode,
       dominantColor: dominantColor ?? this.dominantColor,
       isExtractingColor: isExtractingColor ?? this.isExtractingColor,
-      nextTrackId: nextTrackId ?? this.nextTrackId,
-      nextTrackTitle: nextTrackTitle ?? this.nextTrackTitle,
-      nextTrackArtist: nextTrackArtist ?? this.nextTrackArtist,
-      nextTrackImage: nextTrackImage ?? this.nextTrackImage,
-      nextStreamUrl: nextStreamUrl ?? this.nextStreamUrl,
-      isNextTrackLoading: isNextTrackLoading ?? this.isNextTrackLoading,
       isTrackEnding: isTrackEnding ?? this.isTrackEnding,
       trackIdHistory: trackIdHistory ?? this.trackIdHistory,
     );

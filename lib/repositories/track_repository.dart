@@ -63,7 +63,6 @@ class TrackRepository {
     }
   }
 
-  // Updated method to get a random song - uses the track ID instead of artist ID
   Future<Map<String, dynamic>> getNextRandomSong(String trackId) async {
     try {
       print('Fetching next random song for track ID: $trackId');

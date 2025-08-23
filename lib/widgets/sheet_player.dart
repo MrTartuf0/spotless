@@ -195,11 +195,33 @@ class SheetPlayer extends ConsumerWidget {
                             : Color(0x8affffff),
                   ),
                 ),
-                SvgPicture.asset(
-                  'assets/icons/previous.svg',
-                  color: Color(0x8affffff),
-                  height: 32,
+                GestureDetector(
+                  onTap: () {
+                    if (audioState.trackIdHistory.length > 2) {
+                      audioNotifier.playPreviousTrack();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'No previous track available',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          backgroundColor: Color(0xff1BD760),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    }
+                  },
+                  child: SvgPicture.asset(
+                    'assets/icons/previous.svg',
+                    color:
+                        audioState.trackIdHistory.length > 1
+                            ? Colors.white
+                            : const Color(0x4Dffffff), // dimmed if disabled
+                    height: 32,
+                  ),
                 ),
+
                 GestureDetector(
                   onTap: () => audioNotifier.togglePlayPause(),
                   child: Container(
@@ -239,8 +261,11 @@ class SheetPlayer extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          audioState.nextTrackId.isNotEmpty
-                              ? 'Playing next track: ${audioState.nextTrackTitle}'
+                          audioState
+                                  .trackIdHistory[audioState.trackIdHistory
+                                      .indexOf(audioState.currentTrackId)]
+                                  .isNotEmpty
+                              ? 'Playing next track: ${audioState.currentTrackTitle}'
                               : 'Finding next track...',
                           style: TextStyle(color: Colors.black),
                         ),
@@ -259,7 +284,7 @@ class SheetPlayer extends ConsumerWidget {
                         color: Colors.white,
                         height: 32,
                       ),
-                      if (audioState.isNextTrackLoading)
+                      if (audioState.isLoading)
                         Positioned(
                           right: 0,
                           bottom: 0,
@@ -272,8 +297,13 @@ class SheetPlayer extends ConsumerWidget {
                             ),
                           ),
                         ),
-                      if (audioState.nextTrackId.isNotEmpty &&
-                          !audioState.isNextTrackLoading)
+
+                      if (audioState
+                              .trackIdHistory[audioState.trackIdHistory.indexOf(
+                                audioState.currentTrackId,
+                              )]
+                              .isNotEmpty &&
+                          !audioState.isLoading)
                         Positioned(
                           right: 0,
                           bottom: 0,
