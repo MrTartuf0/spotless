@@ -139,9 +139,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   // Core functionality methods
   Future<void> _handleTrackCompletion() async {
     // Prevent multiple handlers and reentrance
-    if (_completionService.isHandlingTrackEnd ||
-        _completionService.isCompletionHandled)
-      return;
+    print("Handling track completion start");
 
     _completionService.setHandlingTrackEnd(true);
     _completionService.setCompletionHandled(true);
