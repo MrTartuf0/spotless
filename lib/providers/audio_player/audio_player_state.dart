@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 class AudioPlayerState {
+  final int index;
   final bool isPlaying;
   final bool isLoading;
   final Duration currentPosition;
@@ -30,6 +31,7 @@ class AudioPlayerState {
   final bool isTrackEnding;
   final List<String> trackIdHistory;
   const AudioPlayerState({
+    this.index = -1,
     this.isPlaying = false,
     this.isLoading = false,
     this.currentPosition = Duration.zero,
@@ -51,6 +53,7 @@ class AudioPlayerState {
   });
 
   AudioPlayerState copyWith({
+    int? index,
     bool? isPlaying,
     bool? isLoading,
     Duration? currentPosition,
@@ -71,6 +74,7 @@ class AudioPlayerState {
     List<String>? trackIdHistory,
   }) {
     return AudioPlayerState(
+      index: index ?? this.index,
       isPlaying: isPlaying ?? this.isPlaying,
       isLoading: isLoading ?? this.isLoading,
       currentPosition: currentPosition ?? this.currentPosition,

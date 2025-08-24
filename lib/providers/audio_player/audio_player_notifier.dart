@@ -97,7 +97,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
     final progress = state.progress;
 
-    final currentIndex = state.trackIdHistory.indexOf(state.currentTrackId);
+    final currentIndex = state.index;
 
     if (_completionService.shouldPrefetch(progress) &&
         state.trackIdHistory[currentIndex + 1].isEmpty &&
@@ -305,14 +305,12 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
         trackIdHistory: updatedTrackIdHistory, // Update the track ID history
       );
 
-      print('Loading track: $trackId');
-      print(updatedTrackIdHistory);
-
-      // Get track data using the queue service
       final trackInfo = await _queueService.getTrackData(trackId);
 
-      // Update the state with the track data
+      int nextIndex = state.index + 1;
+
       state = state.copyWith(
+        index: nextIndex,
         currentTrackTitle: trackInfo['title'],
         currentTrackArtist: trackInfo['artist'],
         currentArtistId: trackInfo['artistId'],
@@ -321,6 +319,8 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
         totalDuration: Duration(milliseconds: trackInfo['durationMs']),
         currentStreamUrl: trackInfo['streamUrl'],
       );
+
+      print("Current index is: ${state.index}");
 
       // Extract dominant color from album art
       await extractDominantColor(trackInfo['imageUrl']);
@@ -426,17 +426,11 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   }
 
   Future<void> playNextTrack() async {
-    // Check if there's a track after the current one in trackIdHistory
     if (state.currentTrackId.isNotEmpty && state.trackIdHistory.isNotEmpty) {
-      final currentIndex = state.trackIdHistory.indexOf(state.currentTrackId);
-      if (currentIndex != -1 &&
-          currentIndex < state.trackIdHistory.length - 1) {
-        // There's a track after the current one in history
-        final nextTrackId = state.trackIdHistory[currentIndex + 1];
-        print('Playing next track from history: $nextTrackId');
-        await loadTrack(nextTrackId);
-        return;
-      }
+      final nextTrackId = state.trackIdHistory[state.index + 1];
+      print('Playing next track from history: $nextTrackId');
+      await loadTrack(nextTrackId);
+      return;
     }
 
     // If no track in history, fetch a new one
@@ -449,20 +443,18 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   }
 
   Future<void> playPreviousTrack() async {
-    // Check if there's a track before the current one in trackIdHistory
-    if (state.currentTrackId.isNotEmpty && state.trackIdHistory.isNotEmpty) {
-      final currentIndex = state.trackIdHistory.indexOf(state.currentTrackId);
-      if (currentIndex > 0) {
-        // There’s a track before the current one in history
-        final previousTrackId = state.trackIdHistory[currentIndex - 1];
-        print('Playing previous track from history: $previousTrackId');
-        await loadTrack(previousTrackId, addToHistory: false);
-        return;
-      }
-    }
+    if (state.index > 0) {
+      final previousTrackId = state.trackIdHistory[state.index - 1];
+      print(
+        'Playing previous track from history: $previousTrackId index ${state.index}',
+      );
 
-    // No previous track found in history
-    print('No previous track available in history');
+      state.copyWith(index: state.index - 1);
+      print('Previous ${state.index}');
+
+      await loadTrack(previousTrackId, addToHistory: false);
+      return;
+    }
   }
 
   Future<void> seekTo(Duration position) async {

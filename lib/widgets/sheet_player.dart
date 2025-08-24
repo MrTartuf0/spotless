@@ -197,7 +197,7 @@ class SheetPlayer extends ConsumerWidget {
                 ),
                 GestureDetector(
                   onTap: () {
-                    if (audioState.trackIdHistory.length > 2) {
+                    if (audioState.index > 0) {
                       audioNotifier.playPreviousTrack();
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -215,7 +215,7 @@ class SheetPlayer extends ConsumerWidget {
                   child: SvgPicture.asset(
                     'assets/icons/previous.svg',
                     color:
-                        audioState.trackIdHistory.length > 1
+                        audioState.index > 0
                             ? Colors.white
                             : const Color(0x4Dffffff), // dimmed if disabled
                     height: 32,
@@ -261,10 +261,7 @@ class SheetPlayer extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          audioState
-                                  .trackIdHistory[audioState.trackIdHistory
-                                      .indexOf(audioState.currentTrackId)]
-                                  .isNotEmpty
+                          audioState.trackIdHistory[audioState.index].isNotEmpty
                               ? 'Playing next track: ${audioState.currentTrackTitle}'
                               : 'Finding next track...',
                           style: TextStyle(color: Colors.black),
@@ -299,9 +296,7 @@ class SheetPlayer extends ConsumerWidget {
                         ),
 
                       if (audioState
-                              .trackIdHistory[audioState.trackIdHistory.indexOf(
-                                audioState.currentTrackId,
-                              )]
+                              .trackIdHistory[audioState.index]
                               .isNotEmpty &&
                           !audioState.isLoading)
                         Positioned(
