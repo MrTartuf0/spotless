@@ -48,6 +48,12 @@ class TrackPlaybackService {
     await _audioService.seek(position);
   }
 
+  double get volume => _audioService.volume;
+
+  Future<void> setVolume(double value) async {
+    await _audioService.setVolume(value);
+  }
+
   String formatTime(Duration duration) {
     int mins = duration.inMinutes;
     int secs = duration.inSeconds % 60;

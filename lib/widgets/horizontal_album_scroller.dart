@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:spotACrack/providers/searchbar_provider.dart';
 
 class HorizontalAlbumScroller extends ConsumerWidget {
@@ -16,48 +17,38 @@ class HorizontalAlbumScroller extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(0, 28, 0, 16),
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children:
-              [
-                const Gap(12), // Starting gap
-                ...albums.map(
-                  (album) => AlbumItem(
-                    imageUrl: album.imageUri,
-                    albumName: album.name,
-                    artistName: album.artist,
-                    onTap: () {
-                      // Ensure keyboard is hidden and bottom player is visible
-                      ref
-                          .read(searchStateProvider.notifier)
-                          .setKeyboardVisible(false);
-
-                      // Call the provided album tap handler if any
-                      if (onAlbumTap != null) {
-                        onAlbumTap!(album);
-                      }
+          children: [
+            const Gap(16),
+            for (int i = 0; i < albums.length; i++) ...[
+              AlbumItem(
+                imageUrl: albums[i].imageUri,
+                albumName: albums[i].name,
+                artistName: albums[i].artist,
+                onTap: () {
+                  ref.read(searchStateProvider.notifier).setKeyboardVisible(false);
+                  if (onAlbumTap != null) {
+                    onAlbumTap!(albums[i]);
+                    return;
+                  }
+                  context.pushNamed(
+                    'album',
+                    pathParameters: {'albumId': albums[i].id},
+                    queryParameters: {
+                      if (albums[i].name.isNotEmpty) 'name': albums[i].name,
+                      if (albums[i].imageUri.isNotEmpty) 'image': albums[i].imageUri,
                     },
-                  ),
-                ),
-              ].expand((widget) {
-                if (widget is AlbumItem) {
-                  return [
-                    widget,
-                    if (albums.indexOf(
-                          albums.firstWhere(
-                            (a) => a.imageUri == widget.imageUrl,
-                          ),
-                        ) <
-                        albums.length - 1)
-                      const Gap(16), // Gap between albums
-                  ];
-                }
-                return [widget];
-              }).toList(),
+                  );
+                },
+              ),
+              if (i < albums.length - 1) const Gap(16),
+            ],
+            const Gap(16),
+          ],
         ),
       ),
     );
@@ -82,51 +73,44 @@ class AlbumItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: Image.network(
-              imageUrl,
-              width: 150,
-              height: 150,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 150,
-                  height: 150,
-                  color: Colors.grey[300],
-                  child: const Icon(
-                    Icons.music_note,
-                    size: 40,
-                    color: Colors.grey,
-                  ),
-                );
-              },
+      child: SizedBox(
+        width: 150,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Image.network(
+                imageUrl,
+                width: 150,
+                height: 150,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 150,
+                    height: 150,
+                    color: Colors.grey[800],
+                    child: const Icon(Icons.music_note, size: 40, color: Colors.white54),
+                  );
+                },
+              ),
             ),
-          ),
-          const Gap(8), // Gap between image and text
-          SizedBox(
-            width: 150,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  albumName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    letterSpacing: 0,
-                    height: 0,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+            const Gap(8),
+            Text(
+              albumName,
+              style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+            const Gap(2),
+            Text(
+              artistName.isEmpty ? 'Album' : 'Album • $artistName',
+              style: const TextStyle(fontSize: 12, color: Color(0xaaffffff)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -149,11 +133,11 @@ class Album {
 
   factory Album.fromJson(Map<String, dynamic> json) {
     return Album(
-      artist: json['artist'],
-      artistId: json['artist_id'],
-      id: json['id'],
-      imageUri: json['image_uri'],
-      name: json['name'],
+      artist: json['artist'] as String? ?? '',
+      artistId: json['artist_id'] as String? ?? '',
+      id: json['id'] as String? ?? '',
+      imageUri: json['image_uri'] as String? ?? '',
+      name: json['name'] as String? ?? '',
     );
   }
 }

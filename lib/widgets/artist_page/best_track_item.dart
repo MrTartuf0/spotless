@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
 import 'package:spotACrack/providers/searchbar_provider.dart';
+import 'package:spotACrack/utils/responsive.dart';
 
-class TrackItem extends ConsumerWidget {
+/// One row in an artist's popular tracks.
+///
+/// Hovering swaps the position number for a play glyph and lifts the row —
+/// with a mouse there is no other hint that a list row is clickable.
+class TrackItem extends ConsumerStatefulWidget {
   final int index;
   final String title;
   final String duration;
   final String imageUrl;
   final String trackId;
+
+  /// Shown as a second line on wide windows, where there is room for it.
+  final String albumName;
   final VoidCallback? onTap;
 
   const TrackItem({
@@ -18,96 +26,159 @@ class TrackItem extends ConsumerWidget {
     required this.duration,
     required this.trackId,
     this.imageUrl = '',
+    this.albumName = '',
     this.onTap,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return GestureDetector(
-      onTap: () {
-        // Ensure keyboard is hidden and bottom player is visible
-        ref.read(searchStateProvider.notifier).setKeyboardVisible(false);
+  ConsumerState<TrackItem> createState() => _TrackItemState();
+}
 
-        // Load the track
-        final audioNotifier = ref.read(audioPlayerProvider.notifier);
-        audioNotifier.loadTrack(trackId);
+class _TrackItemState extends ConsumerState<TrackItem> {
+  bool _hovered = false;
 
-        // Show a snackbar
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Loading track...',
-              style: TextStyle(color: Colors.black),
-            ),
-            duration: Duration(seconds: 1),
-            backgroundColor: Color(0xff1BD760),
+  @override
+  Widget build(BuildContext context) {
+    final playing = ref.watch(
+      audioPlayerProvider.select((s) => s.currentTrackId == widget.trackId),
+    );
+    final accent = playing ? const Color(0xff1BD760) : Colors.white;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: () {
+          // Keep the mini player visible if we came from a search.
+          ref.read(searchStateProvider.notifier).setKeyboardVisible(false);
+          ref.read(audioPlayerProvider.notifier).loadTrack(widget.trackId);
+          widget.onTap?.call();
+        },
+        child: Container(
+          margin: EdgeInsets.symmetric(horizontal: context.pagePadding),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          decoration: BoxDecoration(
+            color: _hovered ? const Color(0xFF1F1F1F) : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
           ),
-        );
-
-        // Call the provided callback if any
-        if (onTap != null) {
-          onTap!();
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 8.0),
-        child: Row(
-          children: [
-            // Song number
-            SizedBox(
-              width: 30,
-              child: Text(
-                "$index",
-                style: TextStyle(fontSize: 16, color: Colors.white70),
-              ),
-            ),
-
-            // Album art
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child:
-                  imageUrl.isNotEmpty
-                      ? Image.network(
-                        imageUrl,
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 40,
-                            height: 40,
-                            color: Colors.grey[800],
-                          );
-                        },
-                      )
-                      : Container(
-                        width: 40,
-                        height: 40,
-                        color: Colors.grey[800],
+          child: Row(
+            children: [
+              SizedBox(
+                width: 28,
+                child: _hovered
+                    ? Icon(Icons.play_arrow, size: 18, color: accent)
+                    : Text(
+                        '${widget.index}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: playing
+                              ? const Color(0xff1BD760)
+                              : const Color(0xB3FFFFFF),
+                        ),
                       ),
-            ),
-
-            SizedBox(width: 16),
-
-            // Song title
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(fontSize: 16, color: Colors.white),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-
-            SizedBox(width: 16),
-
-            // Duration
-            Text(
-              duration,
-              style: TextStyle(fontSize: 14, color: Colors.white70),
-            ),
-          ],
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: widget.imageUrl.startsWith('http')
+                    ? Image.network(
+                        widget.imageUrl,
+                        width: 42,
+                        height: 42,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _placeholder(),
+                      )
+                    : _placeholder(),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (context.isWide && widget.albumName.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.albumName,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0x99FFFFFF),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                widget.duration,
+                style: const TextStyle(fontSize: 13, color: Color(0x99FFFFFF)),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+    width: 42,
+    height: 42,
+    color: const Color(0xFF262626),
+    child: const Icon(Icons.music_note, color: Colors.white38, size: 18),
+  );
+}
+
+/// Row-shaped placeholder used while the discography loads.
+class TrackItemSkeleton extends StatelessWidget {
+  final int index;
+
+  const TrackItemSkeleton({super.key, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.pagePadding + 8,
+        vertical: 14,
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$index',
+              style: const TextStyle(fontSize: 14, color: Color(0x66FFFFFF)),
+            ),
+          ),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Container(height: 14, color: const Color(0x14FFFFFF)),
+          ),
+          const SizedBox(width: 16),
+          Container(width: 32, height: 12, color: const Color(0x14FFFFFF)),
+        ],
       ),
     );
   }

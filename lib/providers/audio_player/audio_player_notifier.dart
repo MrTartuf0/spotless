@@ -10,6 +10,7 @@ import 'package:spotACrack/providers/audio_player/track_playback_service.dart';
 import 'package:spotACrack/repositories/track_repository.dart';
 import 'package:spotACrack/services/color_extractor.dart';
 import 'package:spotACrack/services/audio_service.dart';
+import 'package:spotACrack/services/history_service.dart';
 import 'package:spotACrack/providers/searchbar_provider.dart';
 
 class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
@@ -21,10 +22,17 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   late final TrackQueueService _queueService;
   late final TrackCompletionService _completionService;
 
+  // State management flags
+  bool _isHandlingCompletion = false;
+  // Guards against a double-tap on next/prev starting two loads at once, which
+  // leaves the history index and the player disagreeing about what is playing.
+  bool _isSwitchingTrack = false;
+  Completer<void>? _pendingCompletion;
+  DateTime _lastCompletionTime = DateTime.now();
+
   AudioPlayerNotifier(this._trackRepository, this._ref)
     : super(const AudioPlayerState()) {
     _initializeServices();
-    _initializeListeners();
   }
 
   void _initializeServices() {
@@ -39,55 +47,29 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     // Initialize the queue service
     _queueService = TrackQueueService(_trackRepository);
 
-    // Initialize the completion service with progress checker function
+    // Initialize the completion service with progress checker function.
+    // Route every completion trigger (watchdog, end-of-track timer, etc.)
+    // through _safeHandleCompletion so the debounce is the single gate.
     _completionService = TrackCompletionService(
-      onTrackComplete: _handleTrackCompletion,
+      onTrackComplete: _safeHandleCompletion,
       onPrefetchNeeded: _prefetchNextTrack,
-      progressChecker:
-          (ignored) => state.progress, // Pass current progress from state
+      progressChecker: (ignored) => state.progress,
     );
-  }
-
-  // And add an explicit _startNextTrack() method to handle the transition
-  Future<void> _startNextTrack() async {
-    // Always stop current playback immediately to prevent conflicts
-    await _playbackService.stop();
-
-    // Choose the appropriate method based on what's available
-    print("🚀 Finding and playing next track...");
-    await _playNextTrack();
-  }
-
-  void _initializeListeners() {
-    // Additional initialization code can go here
   }
 
   // Event handlers for playback events
   void _handlePlayerStateChanged(PlayerState playerState) {
     print("Player state changed to: $playerState");
 
-    // Check if player just completed
-    if (playerState == PlayerState.completed) {
-      print("⭐ PLAYER STATE COMPLETED DETECTED ⭐");
-      Future.microtask(_handleTrackCompletion);
-    }
-
     state = state.copyWith(
       isPlaying: playerState == PlayerState.playing,
       isLoading: playerState == PlayerState.playing ? false : state.isLoading,
     );
 
-    // If we were playing and now we're not, check if we need to handle completion
-    if ((playerState == PlayerState.paused ||
-            playerState == PlayerState.stopped) &&
-        state.currentPosition.inMilliseconds > 0) {
-      final progress = state.progress;
-      if (progress > 0.97) {
-        print(
-          "Player paused/stopped near end (${(progress * 100).toStringAsFixed(1)}%), checking if completion needed",
-        );
-        _completionService.checkTrackCompletion(progress);
-      }
+    // Handle completion only when the player explicitly reports it
+    if (playerState == PlayerState.completed) {
+      print("⭐ PLAYER STATE COMPLETED DETECTED ⭐");
+      _safeHandleCompletion();
     }
   }
 
@@ -97,27 +79,19 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
     final progress = state.progress;
 
-    final currentIndex = state.index;
-
+    // Prefetch logic
     if (_completionService.shouldPrefetch(progress) &&
-        state.trackIdHistory[currentIndex + 1].isEmpty &&
+        _shouldPrefetchNextTrack() &&
         !state.isLoading) {
       _prefetchNextTrack();
     }
 
-    // Check if we should force completion
+    // Completion logic - only handle through position changes
     if (_completionService.shouldForceCompletion(progress)) {
       print(
-        "Position at ${(progress * 100).toStringAsFixed(1)}% of track, forcing next track",
+        "Position at ${(progress * 100).toStringAsFixed(1)}% of track, forcing completion",
       );
-      _completionService.checkTrackCompletion(progress);
-    }
-    // Check for normal completion
-    else if (progress > 0.98 && !_completionService.isCompletionHandled) {
-      print(
-        "Position at ${(progress * 100).toStringAsFixed(1)}% of track, checking completion",
-      );
-      _completionService.checkTrackCompletion(progress);
+      _safeHandleCompletion();
     }
 
     // Schedule end timer if needed
@@ -133,64 +107,107 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
   void _handleTrackCompleted() {
     print("⭐ COMPLETION LISTENER TRIGGERED ⭐");
-    _handleTrackCompletion();
+    _safeHandleCompletion();
+  }
+
+  // Safe completion handling with debouncing
+  Future<void> _safeHandleCompletion() async {
+    // Prevent multiple completion handlers from running simultaneously
+    if (_isHandlingCompletion) {
+      print("Completion already in progress, queuing request");
+      // If we already have a pending completion, wait for it
+      if (_pendingCompletion != null) {
+        await _pendingCompletion!.future;
+      }
+      return;
+    }
+
+    // Debounce completion events
+    final now = DateTime.now();
+    if (now.difference(_lastCompletionTime) < Duration(milliseconds: 500)) {
+      print("Completion debounced");
+      return;
+    }
+
+    _isHandlingCompletion = true;
+    _lastCompletionTime = now;
+    _pendingCompletion = Completer<void>();
+
+    try {
+      await _handleTrackCompletion();
+      _pendingCompletion!.complete();
+    } catch (e) {
+      _pendingCompletion!.completeError(e);
+      print("Error in completion handling: $e");
+    } finally {
+      _isHandlingCompletion = false;
+      _pendingCompletion = null;
+    }
   }
 
   // Core functionality methods
   Future<void> _handleTrackCompletion() async {
-    // Prevent multiple handlers and reentrance
-    print("Handling track completion start");
+    print("Handling track completion");
 
-    _completionService.setHandlingTrackEnd(true);
-    _completionService.setCompletionHandled(true);
+    // Cancel any pending timers
+    _completionService.cancelTrackEndTimer();
+    _completionService.cancelWatchdogTimer();
 
-    try {
-      print("Handling track completion");
-
-      // Cancel any pending timers
-      _completionService.cancelTrackEndTimer();
-      _completionService.cancelWatchdogTimer();
-
-      // Check repeat mode
-      if (state.repeatMode == 2) {
-        // Repeat one - play the same track again
-        print("Repeat One mode: replaying current track");
-        await playStream(fromBeginning: true);
-      } else {
-        // Always play next track, regardless of repeat mode
-        print("Playing next track after completion");
-
-        // Immediate state update to prevent further completion events
-        state = state.copyWith(
-          currentPosition: state.totalDuration, // Force position to end
-          isPlaying: false, // Mark as not playing
-        );
-
-        // Stop the current track immediately to prevent more events
-        await _playbackService.stop();
-
-        // Use a Future.microtask to ensure this executes after current call stack
-        Future.microtask(() async {
-          // Call with slight delay to ensure clean transition
-          await Future.delayed(Duration(milliseconds: 300));
-          await _startNextTrack();
-        });
-      }
-    } catch (e) {
-      print("Error handling track completion: $e");
-      // If there was an error, try to recover by playing next track directly
-      try {
-        await Future.delayed(Duration(milliseconds: 500));
-        await _playNextTrack();
-      } catch (_) {
-        // Last resort recovery attempt
-      }
-    } finally {
-      // Small delay before clearing handling flag to prevent race conditions
-      Future.delayed(Duration(milliseconds: 500), () {
-        _completionService.setHandlingTrackEnd(false);
-      });
+    // Check repeat mode
+    if (state.repeatMode == 2) {
+      // Repeat one - play the same track again
+      print("Repeat One mode: replaying current track");
+      await _replayCurrentTrack();
+    } else {
+      // Play next track
+      print("Playing next track after completion");
+      await _playNextTrackAfterCompletion();
     }
+  }
+
+  Future<void> _replayCurrentTrack() async {
+    // Stop current playback
+    await _playbackService.stop();
+
+    // Reset position and play again
+    state = state.copyWith(
+      currentPosition: Duration.zero,
+      isTrackEnding: false,
+    );
+
+    await playStream(fromBeginning: true);
+  }
+
+  Future<void> _playNextTrackAfterCompletion() async {
+    // Update state to reflect completion
+    state = state.copyWith(
+      currentPosition: state.totalDuration,
+      isPlaying: false,
+      isTrackEnding: false,
+    );
+
+    // Stop current playback
+    await _playbackService.stop();
+
+    // Play next track
+    await _playNextTrack();
+  }
+
+  bool _shouldPrefetchNextTrack() {
+    final nextIndex = state.index + 1;
+
+    // Check if we already have the next track in history
+    if (nextIndex < state.trackIdHistory.length &&
+        state.trackIdHistory[nextIndex].isNotEmpty) {
+      return false;
+    }
+
+    // Don't prefetch if we're at the end of available tracks
+    if (state.hasNextTrack == false) {
+      return false;
+    }
+
+    return true;
   }
 
   Future<void> _prefetchNextTrack() async {
@@ -202,22 +219,47 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
       print('Fetching next track to add to history');
 
-      // Fetch the next track
+      // Check if we already have a next track
+      final nextIndex = state.index + 1;
+      if (nextIndex < state.trackIdHistory.length &&
+          state.trackIdHistory[nextIndex].isNotEmpty) {
+        print('Next track already exists in history');
+        return;
+      }
+
+      if (state.isNextTrackLoading) {
+        print('Next track is already loading');
+        return;
+      }
+
+      state = state.copyWith(isNextTrackLoading: true);
+
       final nextTrackInfo = await _queueService.fetchNextTrack(
         state.currentTrackId,
+        exclude: state.trackIdHistory,
       );
 
-      if (!state.trackIdHistory.contains(nextTrackInfo['id'])) {
-        // Add to the END of the history array
-        state = state.copyWith(
-          trackIdHistory: [...state.trackIdHistory, nextTrackInfo['id']],
-        );
-        print('Added track ${nextTrackInfo['id']} to history');
-      } else {
-        print('Track ${nextTrackInfo['id']} already exists in history');
+      if (nextTrackInfo['id'] == null || nextTrackInfo['id'].isEmpty) {
+        print('No next track available');
+        state = state.copyWith(hasNextTrack: false);
+        return;
       }
+
+      final newTrackId = nextTrackInfo['id'] as String;
+      final updatedHistory = List<String>.from(state.trackIdHistory);
+      if (nextIndex >= updatedHistory.length) {
+        updatedHistory.add(newTrackId);
+      } else {
+        updatedHistory[nextIndex] = newTrackId;
+      }
+
+      state = state.copyWith(trackIdHistory: updatedHistory);
+      print('Queued track $newTrackId at position $nextIndex');
     } catch (e) {
       print('Error fetching next track: $e');
+      state = state.copyWith(hasNextTrack: false);
+    } finally {
+      state = state.copyWith(isNextTrackLoading: false);
     }
   }
 
@@ -234,16 +276,38 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       );
       state = state.copyWith(isLoading: true);
 
-      // Use the queue service to get the next track
+      // Check if we have the next track in history
+      final nextIndex = state.index + 1;
+      if (nextIndex < state.trackIdHistory.length &&
+          state.trackIdHistory[nextIndex].isNotEmpty) {
+        print(
+          'Playing next track from history: ${state.trackIdHistory[nextIndex]}',
+        );
+        await _loadTrack(
+          state.trackIdHistory[nextIndex],
+          historyIndex: nextIndex,
+        );
+        return;
+      }
+
+      // If no track in history, fetch a new one
+      print('Fetching next track as none found in history');
       final nextTrackInfo = await _queueService.fetchNextTrack(
         state.currentTrackId,
+        exclude: state.trackIdHistory,
       );
 
+      if (nextTrackInfo['id'] == null || nextTrackInfo['id'].isEmpty) {
+        print('No next track available');
+        state = state.copyWith(isLoading: false, hasNextTrack: false);
+        return;
+      }
+
       // Load and play the track
-      loadTrack(nextTrackInfo['id']);
+      await _loadTrack(nextTrackInfo['id']);
     } catch (e) {
       print('Error playing next track: $e');
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoading: false, hasNextTrack: false);
     }
   }
 
@@ -254,9 +318,6 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
       // Force a new image instance to avoid caching issues
       final imageProvider = NetworkImage(imageUrl, scale: 1.0);
-
-      // Add a small delay to ensure the image has time to be resolved
-      await Future.delayed(Duration(milliseconds: 300));
 
       // Extract the color
       final Color extractedColor = await ColorExtractor.extractDominantColor(
@@ -275,6 +336,20 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   }
 
   Future<void> loadTrack(String trackId, {bool addToHistory = true}) async {
+    await _loadTrack(trackId, addToHistory: addToHistory);
+  }
+
+  /// Loads and plays [trackId].
+  ///
+  /// [historyIndex] moves the pointer to an entry that is already in the
+  /// history, for prev/next navigation. Without it the pointer would stay put
+  /// and the track would be written over the slot the listener is currently on,
+  /// which makes every later "next" replay the same song.
+  Future<void> _loadTrack(
+    String trackId, {
+    bool addToHistory = true,
+    int? historyIndex,
+  }) async {
     try {
       // Ensure keyboard is hidden and bottom player is visible
       if (_ref.read(searchStateProvider.notifier).state.isKeyboardVisible) {
@@ -290,27 +365,58 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       _completionService.cancelWatchdogTimer();
       _completionService.setCompletionHandled(false);
 
-      // Create a new track ID history, adding the trackId only if addToHistory is true
-      final updatedTrackIdHistory =
-          addToHistory
-              ? [...state.trackIdHistory, trackId]
-              : state.trackIdHistory;
+      // Determine the new index and history
+      int newIndex = state.index;
+      List<String> updatedTrackIdHistory = List.from(state.trackIdHistory);
+
+      if (historyIndex != null) {
+        // Navigating within history: move the pointer, leave the list alone.
+        newIndex = historyIndex;
+        if (newIndex < updatedTrackIdHistory.length) {
+          updatedTrackIdHistory[newIndex] = trackId;
+        } else {
+          updatedTrackIdHistory.add(trackId);
+        }
+      } else if (addToHistory) {
+        // If we're adding to history, increment index and add the track
+        newIndex = state.index + 1;
+
+        // Ensure history has enough slots
+        if (newIndex >= updatedTrackIdHistory.length) {
+          updatedTrackIdHistory.add(trackId);
+        } else {
+          updatedTrackIdHistory[newIndex] = trackId;
+          // If we're overwriting history, remove any future tracks
+          if (newIndex < updatedTrackIdHistory.length - 1) {
+            updatedTrackIdHistory = updatedTrackIdHistory.sublist(
+              0,
+              newIndex + 1,
+            );
+          }
+        }
+      } else {
+        // If not adding to history, just update the current track
+        if (newIndex < updatedTrackIdHistory.length) {
+          updatedTrackIdHistory[newIndex] = trackId;
+        } else {
+          updatedTrackIdHistory.add(trackId);
+        }
+      }
 
       state = state.copyWith(
         isLoading: true,
-        currentTrackId: trackId, // Update track ID immediately
-        isPlaying: false, // Reset playing state
-        currentPosition: Duration.zero, // Reset position
-        isTrackEnding: false, // Reset end flag
-        trackIdHistory: updatedTrackIdHistory, // Update the track ID history
+        currentTrackId: trackId,
+        isPlaying: false,
+        currentPosition: Duration.zero,
+        isTrackEnding: false,
+        trackIdHistory: updatedTrackIdHistory,
+        index: newIndex,
+        hasNextTrack: true, // Reset until we know otherwise
       );
 
       final trackInfo = await _queueService.getTrackData(trackId);
 
-      int nextIndex = state.index + 1;
-
       state = state.copyWith(
-        index: nextIndex,
         currentTrackTitle: trackInfo['title'],
         currentTrackArtist: trackInfo['artist'],
         currentArtistId: trackInfo['artistId'],
@@ -320,20 +426,50 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
         currentStreamUrl: trackInfo['streamUrl'],
       );
 
+      // Fire-and-forget: record in local history. Failures here must never
+      // break playback, so errors are swallowed.
+      unawaited(
+        HistoryService().recordTrack(
+          id: trackId,
+          title: trackInfo['title'] as String,
+          artist: trackInfo['artist'] as String,
+          artistId: trackInfo['artistId'] as String,
+          imageUrl: trackInfo['imageUrl'] as String,
+        ).catchError((e) {
+          print('Failed to record track in history: $e');
+        }),
+      );
+
+      // Same for the artist, which is what fills the artists shelf on Home
+      // and the Artists filter in the library.
+      final artistId = trackInfo['artistId'] as String;
+      if (artistId.isNotEmpty) {
+        unawaited(
+          HistoryService().recordArtist(
+            id: artistId,
+            name: trackInfo['artist'] as String,
+          ).catchError((e) {
+            print('Failed to record artist in history: $e');
+          }),
+        );
+      }
+
       print("Current index is: ${state.index}");
 
-      // Extract dominant color from album art
-      await extractDominantColor(trackInfo['imageUrl']);
+      // Kick the artwork colour off in the background; the players animate to
+      // it when it lands, so playback does not need to wait for it.
+      unawaited(extractDominantColor(trackInfo['imageUrl']));
 
-      // Only start playing after color extraction is complete
       await _playbackService.play(trackInfo['streamUrl'], fromBeginning: true);
 
       // Update loading state
       state = state.copyWith(isLoading: false);
 
-      // Prefetch the next track after a short delay
-      Future.delayed(Duration(seconds: 2), () {
-        _prefetchNextTrack();
+      // Line up the next track once playback has settled.
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (_shouldPrefetchNextTrack()) {
+          _prefetchNextTrack();
+        }
       });
     } catch (e) {
       print('Error loading track: $e');
@@ -361,9 +497,6 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       _completionService.cancelTrackEndTimer();
       _completionService.setCompletionHandled(false);
 
-      // A small delay to ensure proper cleanup
-      await Future.delayed(Duration(milliseconds: 300));
-
       // Play using our playback service
       await _playbackService.play(
         state.currentStreamUrl,
@@ -390,8 +523,7 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
       if (state.isPlaying) {
         await _playbackService.pause();
-        _completionService
-            .cancelWatchdogTimer(); // Cancel watchdog when pausing
+        _completionService.cancelWatchdogTimer();
       } else {
         state = state.copyWith(isLoading: true);
 
@@ -426,42 +558,61 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   }
 
   Future<void> playNextTrack() async {
-    if (state.currentTrackId.isNotEmpty && state.trackIdHistory.isNotEmpty) {
-      final nextTrackId = state.trackIdHistory[state.index + 1];
-      print('Playing next track from history: $nextTrackId');
-      await loadTrack(nextTrackId);
+    if (state.currentTrackId.isEmpty) {
+      print('Cannot play next track: No current track ID');
       return;
     }
 
-    // If no track in history, fetch a new one
-    if (!state.isLoading) {
+    if (_isSwitchingTrack) {
+      print('Already switching track, ignoring');
+      return;
+    }
+    _isSwitchingTrack = true;
+
+    try {
+      if (state.index + 1 < state.trackIdHistory.length &&
+          state.trackIdHistory[state.index + 1].isNotEmpty) {
+        final nextIndex = state.index + 1;
+        final nextTrackId = state.trackIdHistory[nextIndex];
+        print('Playing next track from history: $nextTrackId');
+        await _loadTrack(nextTrackId, historyIndex: nextIndex);
+        return;
+      }
+
       print('Fetching next track as none found in history');
       await _playNextTrack();
-    } else {
-      print('Next track is still loading, please wait...');
+    } finally {
+      _isSwitchingTrack = false;
     }
   }
 
   Future<void> playPreviousTrack() async {
-    if (state.index > 0) {
-      final previousTrackId = state.trackIdHistory[state.index - 1];
+    if (state.index <= 0) return;
+
+    if (_isSwitchingTrack) {
+      print('Already switching track, ignoring');
+      return;
+    }
+    _isSwitchingTrack = true;
+
+    try {
+      final previousIndex = state.index - 1;
+      final previousTrackId = state.trackIdHistory[previousIndex];
+
       print(
-        'Playing previous track from history: $previousTrackId index ${state.index}',
+        'Playing previous track from history: $previousTrackId index $previousIndex',
       );
 
-      state.copyWith(index: state.index - 1);
-      print('Previous ${state.index}');
-
-      await loadTrack(previousTrackId, addToHistory: false);
-      return;
+      await _loadTrack(previousTrackId, historyIndex: previousIndex);
+    } finally {
+      _isSwitchingTrack = false;
     }
   }
 
   Future<void> seekTo(Duration position) async {
     try {
-      _completionService
-          .cancelTrackEndTimer(); // Cancel any end timer when manually seeking
-      _completionService.cancelWatchdogTimer(); // Cancel watchdog when seeking
+      _completionService.cancelTrackEndTimer();
+      _completionService.cancelWatchdogTimer();
       _completionService.setCompletionHandled(false);
 
       // Update our state immediately to reflect the seek position
@@ -507,6 +658,32 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
   void toggleRepeat() {
     state = state.copyWith(repeatMode: (state.repeatMode + 1) % 3);
+  }
+
+  /// Sets output level, 0..1. The service keeps the value and reapplies it
+  /// after the reset that every new URL triggers, so this survives track
+  /// changes.
+  Future<void> setVolume(double value) async {
+    final clamped = value.clamp(0.0, 1.0);
+    await _playbackService.setVolume(clamped);
+    state = state.copyWith(
+      volume: clamped,
+      // Dragging the slider up is also how you unmute, so remember the new
+      // level as the one to come back to.
+      volumeBeforeMute: clamped > 0 ? clamped : state.volumeBeforeMute,
+    );
+  }
+
+  Future<void> toggleMute() async {
+    if (state.volume > 0) {
+      final previous = state.volume;
+      await _playbackService.setVolume(0);
+      state = state.copyWith(volume: 0, volumeBeforeMute: previous);
+    } else {
+      final restored = state.volumeBeforeMute > 0 ? state.volumeBeforeMute : 1.0;
+      await _playbackService.setVolume(restored);
+      state = state.copyWith(volume: restored);
+    }
   }
 
   String formatTime(Duration duration) {

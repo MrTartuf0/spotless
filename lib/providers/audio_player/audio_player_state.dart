@@ -26,11 +26,24 @@ class AudioPlayerState {
   //final String nextTrackArtist;
   //final String nextTrackImage;
   //final String nextStreamUrl;
-  //final bool isNextTrackLoading;
+  final bool isNextTrackLoading;
+  final bool hasNextTrack;
 
   final bool isTrackEnding;
   final List<String> trackIdHistory;
+
+  /// Output level, 0..1.
+  final double volume;
+
+  /// Level to restore when unmuting. Muting is "volume 0 with a memory"
+  /// rather than a separate flag on the player.
+  final double volumeBeforeMute;
+
   const AudioPlayerState({
+    this.volume = 1.0,
+    this.volumeBeforeMute = 1.0,
+    this.isNextTrackLoading = false,
+    this.hasNextTrack = false,
     this.index = -1,
     this.isPlaying = false,
     this.isLoading = false,
@@ -54,6 +67,8 @@ class AudioPlayerState {
 
   AudioPlayerState copyWith({
     int? index,
+    bool? hasNextTrack,
+    bool? isNextTrackLoading,
     bool? isPlaying,
     bool? isLoading,
     Duration? currentPosition,
@@ -72,9 +87,15 @@ class AudioPlayerState {
     bool? isExtractingColor,
     bool? isTrackEnding,
     List<String>? trackIdHistory,
+    double? volume,
+    double? volumeBeforeMute,
   }) {
     return AudioPlayerState(
+      volume: volume ?? this.volume,
+      volumeBeforeMute: volumeBeforeMute ?? this.volumeBeforeMute,
+      hasNextTrack: hasNextTrack ?? this.hasNextTrack,
       index: index ?? this.index,
+      isNextTrackLoading: isNextTrackLoading ?? this.isNextTrackLoading,
       isPlaying: isPlaying ?? this.isPlaying,
       isLoading: isLoading ?? this.isLoading,
       currentPosition: currentPosition ?? this.currentPosition,

@@ -14,10 +14,8 @@ class TrackCompletionService {
   // Timers
   Timer? _trackEndTimer;
   Timer? _watchdogTimer;
-  Timer? _pollingTimer; // Additional polling timer
 
   // State flags
-  bool _handlingTrackEnd = false;
   bool _completionHandled = false;
 
   // Callbacks
@@ -29,42 +27,7 @@ class TrackCompletionService {
     required this.onTrackComplete,
     required this.onPrefetchNeeded,
     required this.progressChecker,
-  }) {
-    // Start polling timer that checks track state regularly
-    _startPollingTimer();
-  }
-
-  // Start a polling timer that periodically checks if we need to force track advancement
-  void _startPollingTimer() {
-    cancelPollingTimer();
-
-    // Check every 1 second if we should advance the track
-    _pollingTimer = Timer.periodic(Duration(milliseconds: 1000), (_) {
-      final progress = progressChecker(0);
-
-      // If we're very near the end and not handling completion, force advance
-      if (progress > 0.995 && !_completionHandled && !_handlingTrackEnd) {
-        print(
-          "🔍 POLLING TIMER: Track at ${(progress * 100).toStringAsFixed(1)}%, forcing next track",
-        );
-        _completionHandled = true;
-        onTrackComplete();
-      }
-    });
-  }
-
-  void cancelPollingTimer() {
-    if (_pollingTimer != null && _pollingTimer!.isActive) {
-      _pollingTimer!.cancel();
-      _pollingTimer = null;
-    }
-  }
-
-  bool get isHandlingTrackEnd => _handlingTrackEnd;
-
-  void setHandlingTrackEnd(bool value) {
-    _handlingTrackEnd = value;
-  }
+  });
 
   bool get isCompletionHandled => _completionHandled;
 
@@ -188,6 +151,5 @@ class TrackCompletionService {
   void dispose() {
     cancelTrackEndTimer();
     cancelWatchdogTimer();
-    cancelPollingTimer();
   }
 }

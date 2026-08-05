@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:gap/gap.dart';
 import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
+import 'package:spotACrack/widgets/artist_link.dart';
+import 'package:spotACrack/widgets/up_next_sheet.dart';
+import 'package:spotACrack/widgets/volume_control.dart';
 
 class SheetPlayer extends ConsumerWidget {
   const SheetPlayer({super.key});
@@ -12,7 +15,11 @@ class SheetPlayer extends ConsumerWidget {
     final audioState = ref.watch(audioPlayerProvider);
     final audioNotifier = ref.read(audioPlayerProvider.notifier);
 
-    return Container(
+    return AnimatedContainer(
+      // Playback no longer waits for colour extraction, so the gradient fades
+      // to the new artwork colour instead of snapping to it.
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOut,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -25,8 +32,7 @@ class SheetPlayer extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          // Header
-          Gap(12),
+          const SheetGrabber(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -97,10 +103,12 @@ class SheetPlayer extends ConsumerWidget {
                           letterSpacing: -0.2,
                         ),
                       ),
-                      Text(
-                        audioState.currentTrackId.isEmpty
-                            ? 'Artist'
-                            : audioState.currentTrackArtist,
+                      ArtistLink(
+                        artistId: audioState.currentArtistId,
+                        artistName: audioState.currentTrackArtist,
+                        // The sheet sits above the router's navigator, so it
+                        // has to close before the artist page is pushed.
+                        onBeforeNavigate: () => Navigator.pop(context),
                         style: TextStyle(
                           color: Colors.grey[300],
                           fontSize: 18,
@@ -257,11 +265,17 @@ class SheetPlayer extends ConsumerWidget {
                 // At the Next Track button section:
                 GestureDetector(
                   onTap: () {
-                    // Show loading message
+                    // Indexing trackIdHistory unguarded threw a RangeError
+                    // before anything had played (index is -1 until then).
+                    final hasQueued =
+                        audioState.index >= 0 &&
+                        audioState.index < audioState.trackIdHistory.length &&
+                        audioState.trackIdHistory[audioState.index].isNotEmpty;
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          audioState.trackIdHistory[audioState.index].isNotEmpty
+                          hasQueued
                               ? 'Playing next track: ${audioState.currentTrackTitle}'
                               : 'Finding next track...',
                           style: TextStyle(color: Colors.black),
@@ -295,7 +309,9 @@ class SheetPlayer extends ConsumerWidget {
                           ),
                         ),
 
-                      if (audioState
+                      if (audioState.index >= 0 &&
+                          audioState.index < audioState.trackIdHistory.length &&
+                          audioState
                               .trackIdHistory[audioState.index]
                               .isNotEmpty &&
                           !audioState.isLoading)
@@ -345,7 +361,56 @@ class SheetPlayer extends ConsumerWidget {
               ],
             ),
           ),
-          Gap(64),
+          const Gap(4),
+
+          // Volume lives here on phones, where there is no persistent bar to
+          // put it in.
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: VolumeControl(sliderWidth: 160),
+          ),
+
+          // Up next: opens the station queued behind this track.
+          SafeArea(
+            top: false,
+            child: InkWell(
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  backgroundColor: Colors.transparent,
+                  barrierColor: Colors.black.withValues(alpha: 0.5),
+                  builder: (_) => const UpNextSheet(),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.queue_music,
+                      size: 20,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                    const Gap(8),
+                    Text(
+                      'Up next',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

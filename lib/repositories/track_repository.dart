@@ -2,6 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
+import 'package:spotACrack/models/album.dart';
 
 class TrackRepository {
   final Dio _dio;
@@ -44,22 +45,105 @@ class TrackRepository {
     }
   }
 
-  Future<String> getStreamUrl(String trackId) async {
+  Future<String> getHlsUrl(String trackId) async {
     try {
-      // Try to get the HLS stream URL
       final response = await _dio.get('$_baseUrl/api/hls/$trackId');
 
       if (response.statusCode == 200 && response.data['url'] != null) {
-        // Prepend the base URL to the relative URL returned by the API
         return '$_baseUrl${response.data['url']}';
       } else {
         throw Exception('Failed to get stream URL');
       }
     } catch (e) {
-      print('Error getting stream URL: $e');
+      print('Error getting HLS URL, falling back to direct stream: $e');
+      return getDirectStreamUrl(trackId);
+    }
+  }
 
-      // Fallback to the default URL if there's an error
-      return '$_baseUrl/hls/94599360893856627734266258834711005588.m3u8';
+  String getDirectStreamUrl(String trackId) => '$_baseUrl/api/play/$trackId';
+
+  Future<Album> getAlbum(String albumId) async {
+    final response = await _dio.get('$_baseUrl/api/album/$albumId');
+    if (response.statusCode == 200) {
+      return Album.fromJson(response.data as Map<String, dynamic>);
+    }
+    throw Exception('Failed to load album $albumId');
+  }
+
+  /// Spotify's autoplay station for a track: the tracks the desktop client
+  /// would play next, in the order they are meant to be played.
+  ///
+  /// [recent] biases the station away from repeating tracks just played.
+  /// Returns an empty list on failure so callers can fall back.
+  Future<List<String>> getRecommendations(
+    String seedTrackId, {
+    List<String> recent = const [],
+    // Only ids are needed to choose what to play next, and each resolved track
+    // costs the backend a metadata round trip, so ask it to resolve as few as
+    // possible.
+    int limit = 1,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/api/recommendations/$seedTrackId',
+        queryParameters: {
+          'limit': limit,
+          // Only the tail matters, and the URL should not grow unbounded.
+          if (recent.isNotEmpty) 'recent': recent.reversed.take(10).join(','),
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // The full station comes back as bare ids; `tracks` only carries the
+        // handful that were resolved. Prefer ids, fall back for older backends.
+        final ids = response.data['ids'];
+        if (ids is List) {
+          return ids
+              .map((id) => id as String? ?? '')
+              .where((id) => id.isNotEmpty)
+              .toList();
+        }
+
+        if (response.data['tracks'] is List) {
+          return (response.data['tracks'] as List)
+              .map((track) => track['id'] as String? ?? '')
+              .where((id) => id.isNotEmpty)
+              .toList();
+        }
+      }
+      return const [];
+    } catch (e) {
+      print('Error fetching recommendations: $e');
+      return const [];
+    }
+  }
+
+  /// Same station as [getRecommendations], but with the metadata needed to
+  /// render cards. The backend resolves artwork, so this is one request.
+  Future<List<Map<String, dynamic>>> getRecommendedTracks(
+    String seedTrackId, {
+    int limit = 10,
+    List<String> recent = const [],
+  }) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/api/recommendations/$seedTrackId',
+        queryParameters: {
+          'limit': limit,
+          if (recent.isNotEmpty) 'recent': recent.reversed.take(10).join(','),
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['tracks'] is List) {
+        return (response.data['tracks'] as List)
+            .cast<Map<String, dynamic>>()
+            .where((track) => (track['id'] as String? ?? '').isNotEmpty)
+            .toList();
+      }
+      return const [];
+    } catch (e) {
+      print('Error fetching recommended tracks: $e');
+      return const [];
     }
   }
 

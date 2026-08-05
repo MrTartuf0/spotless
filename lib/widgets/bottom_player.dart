@@ -21,8 +21,7 @@ class BottomPlayer extends ConsumerWidget {
 
     final bool hasValidImage = audioState.currentTrackImage.startsWith('http');
 
-    // Wrap in a Container instead of Positioned
-    return Container(
+    return SizedBox(
       width: double.infinity,
       child: Stack(
         children: [
@@ -59,7 +58,7 @@ class BottomPlayer extends ConsumerWidget {
             child: Container(
               color: Colors.black,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 70),
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 600),
                   height: 56,
@@ -171,7 +170,7 @@ class BottomPlayer extends ConsumerWidget {
 
           // empty music track progress bar
           Positioned(
-            bottom: 70,
+            bottom: 0,
             left: 16,
             right: 16,
             child: Container(

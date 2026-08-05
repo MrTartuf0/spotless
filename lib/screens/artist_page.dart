@@ -1,17 +1,24 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:spotACrack/models/artist_album.dart';
-import 'package:spotACrack/models/artist_track.dart';
-import 'package:spotACrack/providers/searchbar_provider.dart';
+import 'package:spotACrack/models/artist_profile.dart';
+import 'package:spotACrack/providers/artist_provider.dart';
+import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
+import 'package:spotACrack/providers/history_provider.dart';
 import 'package:spotACrack/services/artist_service.dart';
 import 'package:spotACrack/services/color_extractor.dart';
+import 'package:spotACrack/utils/responsive.dart';
 import 'package:spotACrack/widgets/artist_page/album_grid.dart';
 import 'package:spotACrack/widgets/artist_page/artist_header.dart';
 import 'package:spotACrack/widgets/artist_page/back_button.dart';
 import 'package:spotACrack/widgets/artist_page/best_track_item.dart';
-import 'package:spotACrack/widgets/bottom_player.dart';
 
+/// Artist page: header, popular tracks, then everything they released.
+///
+/// Runs off two independent requests — the profile (name, artwork, followers)
+/// and the discography — so the header can render as soon as either one lands
+/// instead of waiting for both.
 class ArtistPage extends ConsumerStatefulWidget {
   final String artistId;
   final String artistName;
@@ -29,103 +36,31 @@ class ArtistPage extends ConsumerStatefulWidget {
 }
 
 class _ArtistPageState extends ConsumerState<ArtistPage> {
-  Color _dominantColor = Color(0xff491d18); // Default color until we extract
-  bool _isLoadingColor = true;
-  bool _isLoadingData = true;
-  bool _hasError = false;
-  String _errorMessage = '';
+  Color _dominantColor = const Color(0xff491d18);
+  bool _showAllTracks = false;
+
+  /// Artwork the current colour was pulled from, so a rebuild doesn't kick off
+  /// the same extraction again.
+  String _colorSource = '';
+
+  /// Artist we have already written to history, for the same reason.
+  String _recorded = '';
 
   final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0.0;
-  bool _showAllTracks = false; // Flag to control track visibility
-
-  List<ArtistTrack> _tracks = [];
-  List<ArtistAlbum> _albums = [];
-
-  // Placeholder data for skeleton loading
-  final List<Map<String, String>> _placeholderTracks = List.generate(
-    5,
-    (index) => {"title": "Loading track...", "duration": "0:00"},
-  );
-
-  final List<Map<String, String>> _placeholderAlbums = List.generate(
-    6,
-    (index) => {
-      "title": "Loading album...",
-      "releaseDate": "2023",
-      "trackCount": "0 tracks",
-      "image": "",
-    },
-  );
+  double _scrollOffset = 0;
 
   @override
   void initState() {
     super.initState();
-    _extractColor();
-    _fetchArtistData();
+    _extractColor(widget.artistImage);
     _scrollController.addListener(() {
-      setState(() {
-        _scrollOffset = _scrollController.offset;
-      });
+      // Only the back button reads this, and only to decide whether it needs a
+      // scrim, so cheap threshold updates are enough.
+      final offset = _scrollController.offset;
+      if ((offset - _scrollOffset).abs() > 8) {
+        setState(() => _scrollOffset = offset);
+      }
     });
-  }
-
-  Future<void> _fetchArtistData() async {
-    try {
-      setState(() {
-        _isLoadingData = true;
-        _hasError = false;
-      });
-
-      final data = await ArtistService.getArtistDiscography(widget.artistId);
-
-      if (mounted) {
-        setState(() {
-          _tracks = data['tracks'] as List<ArtistTrack>;
-          _albums = data['albums'] as List<ArtistAlbum>;
-          _isLoadingData = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingData = false;
-          _hasError = true;
-          _errorMessage = 'Failed to load artist data: $e';
-        });
-        print(_errorMessage);
-      }
-    }
-  }
-
-  Future<void> _extractColor() async {
-    if (widget.artistImage.isEmpty) {
-      setState(() {
-        _isLoadingColor = false;
-      });
-      return;
-    }
-
-    try {
-      final imageProvider = NetworkImage(widget.artistImage);
-      final extractedColor = await ColorExtractor.extractDominantColor(
-        imageProvider,
-      );
-
-      if (mounted) {
-        setState(() {
-          _dominantColor = extractedColor;
-          _isLoadingColor = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingColor = false;
-        });
-      }
-      print('Error extracting color: $e');
-    }
   }
 
   @override
@@ -134,327 +69,257 @@ class _ArtistPageState extends ConsumerState<ArtistPage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Get the keyboard visibility state from provider
-    final searchState = ref.watch(searchStateProvider);
-    final showBottomPlayer = !searchState.isKeyboardVisible;
+  Future<void> _extractColor(String imageUrl) async {
+    if (imageUrl.isEmpty || imageUrl == _colorSource) return;
+    _colorSource = imageUrl;
 
-    // Determine how many tracks to display
-    final displayedTracks =
-        _showAllTracks
-            ? _tracks
-            : _tracks.length > 5
-            ? _tracks.sublist(0, 5)
-            : _tracks;
-
-    // Format albums for the grid
-    final formattedAlbums =
-        _albums.map((album) {
-          return {
-            "title": album.name,
-            "releaseDate": _formatReleaseDate(album.releaseDate),
-            "trackCount": "${album.totalTracks} tracks",
-            "image": album.imageUrl,
-          };
-        }).toList();
-
-    return Scaffold(
-      backgroundColor: Color(0xFF121212),
-      body: Stack(
-        children: [
-          // Always show the scrollable content with at least the artist header
-          CustomScrollView(
-            controller: _scrollController,
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              // Artist banner with gradient background - always visible
-              SliverToBoxAdapter(
-                child: ArtistHeader(
-                  artistName: widget.artistName,
-                  artistImage: widget.artistImage,
-                  dominantColor: _dominantColor,
-                ),
-              ),
-
-              // Popular section
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    "Popular",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-
-              SliverToBoxAdapter(child: Gap(12)),
-
-              // Popular tracks list with skeleton loading
-              _hasError
-                  ? SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 24.0,
-                      ),
-                      child: Text(
-                        "Failed to load tracks",
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ),
-                  )
-                  : SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      if (_isLoadingData) {
-                        // Skeleton version with visible track numbers
-                        return _buildTrackSkeleton(index + 1);
-                      } else {
-                        if (index >= displayedTracks.length) return null;
-                        // Real data with trackId passed to TrackItem
-                        return TrackItem(
-                          index: index + 1,
-                          title: displayedTracks[index].name,
-                          imageUrl: displayedTracks[index].imageUrl,
-                          duration: displayedTracks[index].duration,
-                          trackId:
-                              displayedTracks[index].id, // Pass the track ID
-                        );
-                      }
-                    }, childCount: _isLoadingData ? 5 : displayedTracks.length),
-                  ),
-
-              // See more / Show less button (only if there are more than 5 tracks)
-              _tracks.length > 5 && !_isLoadingData
-                  ? SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _showAllTracks = !_showAllTracks;
-                          });
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          child: Text(
-                            _showAllTracks ? "Show less" : "See more",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xaaffffff),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                  : SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-              // Albums section
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    "Albums",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Albums grid with skeleton loading
-              SliverToBoxAdapter(
-                child:
-                    _isLoadingData
-                        ? _buildAlbumGridSkeleton()
-                        : AlbumGrid(albums: formattedAlbums),
-              ),
-
-              // Bottom padding - increased to account for the bottom player
-              SliverToBoxAdapter(child: SizedBox(height: 80)),
-            ],
-          ),
-
-          // Error overlay if needed
-          if (_hasError && !_isLoadingData)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.7),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, color: Colors.red, size: 48),
-                      SizedBox(height: 16),
-                      Text(
-                        "Failed to load artist data",
-                        style: TextStyle(color: Colors.white, fontSize: 18),
-                      ),
-                      SizedBox(height: 8),
-                      TextButton(
-                        onPressed: _fetchArtistData,
-                        child: Text("Retry"),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Color(0xff1BD760),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // Fixed back button
-          ArtistBackButton(scrollOffset: _scrollOffset),
-
-          // Bottom player at the bottom of the screen - same as HomePage
-          if (showBottomPlayer)
-            Positioned(left: 0, right: 0, bottom: 0, child: BottomPlayer()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTrackSkeleton(int number) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 8.0),
-      child: Row(
-        children: [
-          // Track number - visible, not skeletonized
-          SizedBox(
-            width: 30,
-            child: Text(
-              "$number",
-              style: TextStyle(fontSize: 16, color: Colors.white70),
-            ),
-          ),
-
-          // Album art skeleton
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: Container(width: 40, height: 40, color: Color(0x5AFFFFFF)),
-          ),
-
-          SizedBox(width: 16),
-
-          // Title skeleton
-          Expanded(
-            child: Container(
-              height: 16,
-              decoration: BoxDecoration(
-                color: Color(0x5AFFFFFF),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-
-          SizedBox(width: 16),
-
-          // Duration skeleton
-          Container(
-            width: 35,
-            height: 14,
-            decoration: BoxDecoration(
-              color: Color(0x5AFFFFFF),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAlbumGridSkeleton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.72,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: 6, // Show 6 placeholder albums
-        itemBuilder: (context, index) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Album cover skeleton
-              AspectRatio(
-                aspectRatio: 1.0,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(color: Color(0x5AFFFFFF)),
-                ),
-              ),
-              SizedBox(height: 8),
-              // Album title skeleton
-              Container(
-                width: double.infinity,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: Color(0x5AFFFFFF),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              SizedBox(height: 4),
-              // Album info skeleton
-              Container(
-                width: double.infinity * 0.7,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Color(0x5AFFFFFF),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  String _formatReleaseDate(String date) {
     try {
-      final parts = date.split('-');
-      if (parts.length >= 2) {
-        final year = parts[0];
-        final month = _getMonthName(int.parse(parts[1]));
-        final day = parts.length > 2 ? parts[2] : '';
-        return day.isNotEmpty ? "$day $month $year" : "$month $year";
-      }
-      return date;
+      final color = await ColorExtractor.extractDominantColor(
+        NetworkImage(imageUrl),
+      );
+      if (mounted) setState(() => _dominantColor = color);
     } catch (e) {
-      return date;
+      print('Error extracting artist color: $e');
     }
   }
 
-  String _getMonthName(int month) {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    return months[month - 1];
+  void _record(ArtistProfile profile) {
+    if (widget.artistId.isEmpty || _recorded == widget.artistId) return;
+    _recorded = widget.artistId;
+
+    ref.read(historyServiceProvider).recordArtist(
+          id: widget.artistId,
+          name: profile.name.isNotEmpty ? profile.name : widget.artistName,
+          imageUrl: profile.imageUrl.isNotEmpty
+              ? profile.imageUrl
+              : widget.artistImage,
+        );
+  }
+
+  void _play(Discography discography) {
+    if (discography.tracks.isEmpty) return;
+    ref
+        .read(audioPlayerProvider.notifier)
+        .loadTrack(discography.tracks.first.id);
+  }
+
+  void _shuffle(Discography discography) {
+    if (discography.tracks.isEmpty) return;
+    final pick = discography.tracks[Random().nextInt(discography.tracks.length)];
+    ref.read(audioPlayerProvider.notifier).loadTrack(pick.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profileAsync = ref.watch(artistProfileProvider(widget.artistId));
+    final discographyAsync =
+        ref.watch(artistDiscographyProvider(widget.artistId));
+
+    final profile = profileAsync.valueOrNull;
+    if (profile != null) {
+      _record(profile);
+      // Prefer the artist's own artwork over whatever the caller passed.
+      if (profile.imageUrl.isNotEmpty) _extractColor(profile.imageUrl);
+    }
+
+    final discography = discographyAsync.valueOrNull ?? const Discography();
+    final loadingTracks = discographyAsync.isLoading;
+    final failed = discographyAsync.hasError;
+
+    final tracks = discography.tracks;
+    final shown = _showAllTracks ? tracks : tracks.take(5).toList();
+
+    return Stack(
+      children: [
+        CustomScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: [
+            SliverToBoxAdapter(
+              child: ArtistHeader(
+                artistName: widget.artistName,
+                artistImage: widget.artistImage,
+                profile: profile,
+                dominantColor: _dominantColor,
+                onPlay: tracks.isEmpty ? null : () => _play(discography),
+                onShuffle: tracks.isEmpty ? null : () => _shuffle(discography),
+              ),
+            ),
+
+            if (failed)
+              SliverToBoxAdapter(
+                child: _LoadFailed(
+                  onRetry: () => ref.invalidate(
+                    artistDiscographyProvider(widget.artistId),
+                  ),
+                ),
+              )
+            else ...[
+              const _SectionTitle('Popular'),
+
+              if (loadingTracks)
+                SliverList.builder(
+                  itemCount: 5,
+                  itemBuilder: (context, i) => TrackItemSkeleton(index: i + 1),
+                )
+              else if (tracks.isEmpty)
+                const SliverToBoxAdapter(
+                  child: _Empty('No tracks for this artist'),
+                )
+              else
+                SliverList.builder(
+                  itemCount: shown.length,
+                  itemBuilder: (context, i) => TrackItem(
+                    index: i + 1,
+                    title: shown[i].name,
+                    imageUrl: shown[i].imageUrl,
+                    albumName: shown[i].albumName,
+                    duration: shown[i].duration,
+                    trackId: shown[i].id,
+                  ),
+                ),
+
+              if (tracks.length > 5 && !loadingTracks)
+                SliverToBoxAdapter(
+                  child: _MoreButton(
+                    expanded: _showAllTracks,
+                    onTap: () =>
+                        setState(() => _showAllTracks = !_showAllTracks),
+                  ),
+                ),
+
+              if (loadingTracks) ...[
+                const _SectionTitle('Albums'),
+                const AlbumGridSkeleton(),
+              ] else ...[
+                if (discography.fullAlbums.isNotEmpty) ...[
+                  const _SectionTitle('Albums'),
+                  AlbumGrid(albums: discography.fullAlbums),
+                ],
+                if (discography.singles.isNotEmpty) ...[
+                  const _SectionTitle('Singles & EPs'),
+                  AlbumGrid(albums: discography.singles),
+                ],
+              ],
+            ],
+
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
+          ],
+        ),
+
+        // Wide windows navigate back from the sidebar, so the floating button
+        // would be a second control for the same thing.
+        if (!context.isWide) ArtistBackButton(scrollOffset: _scrollOffset),
+      ],
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+
+  const _SectionTitle(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          context.pagePadding + 8,
+          28,
+          context.pagePadding,
+          12,
+        ),
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            letterSpacing: -0.4,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreButton extends StatelessWidget {
+  final bool expanded;
+  final VoidCallback onTap;
+
+  const _MoreButton({required this.expanded, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: context.pagePadding + 8),
+        child: TextButton(
+          onPressed: onTap,
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+          ),
+          child: Text(
+            expanded ? 'Show less' : 'See more',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xCCFFFFFF),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Empty extends StatelessWidget {
+  final String message;
+
+  const _Empty(this.message);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.pagePadding,
+        vertical: 24,
+      ),
+      child: Text(message, style: const TextStyle(color: Colors.white54)),
+    );
+  }
+}
+
+class _LoadFailed extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _LoadFailed({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 64, horizontal: 24),
+      child: Column(
+        children: [
+          const Icon(Icons.error_outline, color: Colors.white38, size: 40),
+          const SizedBox(height: 12),
+          const Text(
+            "Couldn't load this artist",
+            style: TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(foregroundColor: const Color(0xff1BD760)),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
   }
 }

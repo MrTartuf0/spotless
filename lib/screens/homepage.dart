@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:spotACrack/providers/search_result_provider.dart';
-import 'package:spotACrack/widgets/artist_tile.dart';
-import 'package:spotACrack/widgets/bottom_player.dart';
-import 'package:spotACrack/widgets/horizontal_album_scroller.dart';
-import 'package:spotACrack/widgets/result_tile.dart';
 import 'package:spotACrack/widgets/searchbar.dart';
+import 'package:spotACrack/widgets/spotify_search_results.dart';
 import 'package:spotACrack/providers/searchbar_provider.dart';
+import 'package:spotACrack/utils/responsive.dart';
 import 'package:spotACrack/widgets/skeletons/artist_tile_skeleton.dart';
 import 'package:spotACrack/widgets/skeletons/horizontal_album_skeleton.dart';
 import 'package:spotACrack/widgets/skeletons/result_tile_skeleton.dart';
@@ -17,14 +15,16 @@ void _debug(String message) {
   print("HOME_DEBUG: $message");
 }
 
-class HomePage extends ConsumerStatefulWidget {
-  const HomePage({super.key});
+/// Search tab. The app frame ([AppShell]) owns the Scaffold, the mini player
+/// and the nav bar, so this only renders the search surface itself.
+class SearchPage extends ConsumerStatefulWidget {
+  const SearchPage({super.key});
 
   @override
-  ConsumerState<HomePage> createState() => _HomePageState();
+  ConsumerState<SearchPage> createState() => _SearchPageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage> {
+class _SearchPageState extends ConsumerState<SearchPage> {
   // Keep a single instance of the SearchBar
   final GlobalKey<SearchbarState> _searchbarKey = GlobalKey<SearchbarState>();
 
@@ -60,143 +60,59 @@ class _HomePageState extends ConsumerState<HomePage> {
     final searchResults = ref.watch(searchResultsProvider);
     final showElements = !searchState.isActive && !searchState.hasText;
 
-    // Only hide the bottom player when the keyboard is ACTUALLY visible
-    final showBottomPlayer = !searchState.isKeyboardVisible;
-
     _debug(
       "Building HomePage - active=${searchState.isActive}, hasText=${searchState.hasText}, keyboardVisible=${searchState.isKeyboardVisible}",
     );
 
-    return Scaffold(
-      backgroundColor: Color(0xFF121212),
-      // Use a Stack to position the content and bottom player
-      body: Stack(
-        children: [
-          // Main content
-          SafeArea(
-            bottom: false, // No bottom padding - we'll handle it ourselves
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _handleBackgroundTap,
-              child: Padding(
-                padding:
-                    searchState.isActive || searchState.hasText
-                        ? EdgeInsets.zero
-                        : EdgeInsets.fromLTRB(16, 48, 16, 0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title
-                    if (showElements)
-                      Text(
-                        'Search',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 32,
-                        ),
-                      ),
-
-                    if (showElements) Gap(16),
-
-                    // Searchbar with a persistent key
-                    Searchbar(key: _searchbarKey),
-
-                    if (!showElements) ...[
-                      Expanded(
-                        child:
-                            searchResults.isLoading
-                                ? _buildLoadingSkeletons()
-                                : searchResults.tracks.isEmpty &&
-                                    searchResults.albums.isEmpty
-                                ? Center(
-                                  child: Text(
-                                    searchResults.error.isNotEmpty
-                                        ? searchResults.error
-                                        : 'No results found',
-                                    style: TextStyle(color: Colors.white60),
-                                  ),
-                                )
-                                : SingleChildScrollView(
-                                  // Add padding at the bottom when results are shown to account for player
-                                  padding: EdgeInsets.only(
-                                    bottom:
-                                        80, // Always add padding for bottom player
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      // First track at the top
-                                      if (searchResults.tracks.isNotEmpty)
-                                        ResultTile(
-                                          albumId:
-                                              searchResults
-                                                  .tracks[0]['albumId'],
-                                          albumName:
-                                              searchResults
-                                                  .tracks[0]['albumName'],
-                                          artist:
-                                              searchResults.tracks[0]['artist'],
-                                          artistId:
-                                              searchResults
-                                                  .tracks[0]['artistId'],
-                                          duration:
-                                              searchResults
-                                                  .tracks[0]['duration'],
-                                          id: searchResults.tracks[0]['id'],
-                                          imageUri:
-                                              searchResults
-                                                  .tracks[0]['imageUri'],
-                                          name: searchResults.tracks[0]['name'],
-                                        ),
-
-                                      // Albums in horizontal scrollview
-                                      if (searchResults.albums.isNotEmpty)
-                                        HorizontalAlbumScroller(
-                                          albums: searchResults.albums,
-                                        ),
-
-                                      // artist tile
-                                      if (searchResults.tracks.isNotEmpty)
-                                        ArtistTile(
-                                          artistId:
-                                              searchResults
-                                                  .tracks[0]['artistId'],
-                                          artistName:
-                                              searchResults.tracks[0]['artist'],
-                                        ),
-
-                                      // Remaining tracks
-                                      if (searchResults.tracks.length > 1)
-                                        ...searchResults.tracks
-                                            .skip(1)
-                                            .map(
-                                              (track) => ResultTile(
-                                                albumId: track['albumId'],
-                                                albumName: track['albumName'],
-                                                artist: track['artist'],
-                                                artistId: track['artistId'],
-                                                duration: track['duration'],
-                                                id: track['id'],
-                                                imageUri: track['imageUri'],
-                                                name: track['name'],
-                                              ),
-                                            )
-                                            .toList(),
-                                    ],
-                                  ),
-                                ),
-                      ),
-                    ],
-                  ],
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _handleBackgroundTap,
+      child: Padding(
+        padding:
+            searchState.isActive || searchState.hasText
+                ? EdgeInsets.zero
+                : EdgeInsets.fromLTRB(
+                  context.pagePadding,
+                  24,
+                  context.pagePadding,
+                  0,
+                ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showElements)
+              Text(
+                'Search',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: context.isWide ? 32 : 28,
+                  letterSpacing: -0.5,
                 ),
               ),
-            ),
-          ),
 
-          // Bottom player at the bottom of the screen
-          if (showBottomPlayer)
-            Positioned(left: 0, right: 0, bottom: 0, child: BottomPlayer()),
-        ],
+            if (showElements) const Gap(16),
+
+            Searchbar(key: _searchbarKey),
+
+            if (!showElements)
+              Expanded(
+                child: searchResults.isLoading
+                    ? _buildLoadingSkeletons()
+                    : searchResults.tracks.isEmpty &&
+                            searchResults.albums.isEmpty
+                        ? Center(
+                            child: Text(
+                              searchResults.error.isNotEmpty
+                                  ? searchResults.error
+                                  : 'No results found',
+                              style: const TextStyle(color: Colors.white60),
+                            ),
+                          )
+                        : const SpotifySearchResults(),
+              ),
+          ],
+        ),
       ),
     );
   }

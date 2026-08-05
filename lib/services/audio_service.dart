@@ -35,6 +35,28 @@ class AudioService {
   // Platform detection
   bool get _useAndroidPlayer => Platform.isAndroid;
 
+  // Output level, 0..1. Kept here because every new URL rebuilds the
+  // underlying player from scratch, which resets it to full volume.
+  double _volume = 1.0;
+  double get volume => _volume;
+
+  Future<void> setVolume(double value) async {
+    _volume = value.clamp(0.0, 1.0);
+    await _applyVolume();
+  }
+
+  Future<void> _applyVolume() async {
+    try {
+      if (_useAndroidPlayer) {
+        await _androidAudioPlayer?.setVolume(_volume);
+      } else {
+        await _iosAudioPlayer?.setVolume(_volume);
+      }
+    } catch (e) {
+      print('Error setting volume: $e');
+    }
+  }
+
   // Initialize players
   Future<void> _initialize() async {
     if (_isInitialized) return;
@@ -143,7 +165,6 @@ class AudioService {
     // Duration listener
     _androidAudioPlayer!.durationStream.listen((duration) {
       if (duration != null) {
-        print('Duration reported: ${duration.inSeconds} seconds');
         for (var listener in _durationListeners) {
           listener(duration);
         }
@@ -188,8 +209,6 @@ class AudioService {
     });
 
     _iosAudioPlayer!.onDurationChanged.listen((duration) {
-      print('Duration reported: ${duration.inSeconds} seconds');
-
       for (var listener in _durationListeners) {
         listener(duration);
       }
@@ -219,10 +238,7 @@ class AudioService {
   }
 
   void addCompletionListener(VoidCallback callback) {
-    _player.onPlayerComplete.listen((_) {
-      print("Audio player completion event fired");
-      callback();
-    });
+    _completionListeners.add(callback);
   }
 
   // Play a URL - completely resets the player for each new track
@@ -254,6 +270,9 @@ class AudioService {
         print('Setting URL on Android player: $url');
         await _androidAudioPlayer!.setUrl(url, initialPosition: position);
 
+        // The reset above handed us a fresh player at full volume.
+        await _applyVolume();
+
         print('Starting Android playback');
         await _androidAudioPlayer!.play();
 
@@ -265,6 +284,8 @@ class AudioService {
           print('iOS player is null, initializing');
           await _initialize();
         }
+
+        await _applyVolume();
 
         print('Starting iOS playback with URL: $url');
         await _iosAudioPlayer!.play(UrlSource(url));
