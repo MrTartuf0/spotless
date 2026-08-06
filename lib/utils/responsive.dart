@@ -27,6 +27,13 @@ const double kMaxContentWidth = 1400;
 extension ResponsiveContext on BuildContext {
   double get windowWidth => MediaQuery.sizeOf(this).width;
 
+  /// Physical-pixel size to decode a [logicalSize]-wide image at, for
+  /// `Image.network(cacheWidth:)`. Decoding artwork at the size it is actually
+  /// shown — rather than its native ~640px — is the single biggest memory win,
+  /// since decoded cost is width×height×4 bytes.
+  int cachePx(double logicalSize) =>
+      (logicalSize * MediaQuery.devicePixelRatioOf(this)).round();
+
   Breakpoint get breakpoint {
     final width = windowWidth;
     if (width >= kExpandedWidth) return Breakpoint.expanded;

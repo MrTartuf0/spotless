@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
 import 'package:spotACrack/providers/history_provider.dart';
 import 'package:spotACrack/providers/recommendations_provider.dart';
+import 'package:spotACrack/screens/app_shell.dart';
 import 'package:spotACrack/services/history_service.dart';
 import 'package:spotACrack/utils/responsive.dart';
 import 'package:spotACrack/widgets/artist_avatar_card.dart';
@@ -64,6 +65,17 @@ class HomeFeed extends ConsumerWidget {
               letterSpacing: -0.5,
             ),
           ),
+          actions: [
+            Padding(
+              padding: EdgeInsets.only(right: context.pagePadding - 8),
+              child: IconButton(
+                onPressed: () => AppShell.selectTab(context, ref, 1),
+                icon: const Icon(Icons.search, color: Colors.white),
+                iconSize: 26,
+                tooltip: 'Search',
+              ),
+            ),
+          ],
         ),
 
         if (tracks.isEmpty && recentTracks.isLoading)
@@ -98,10 +110,9 @@ class HomeFeed extends ConsumerWidget {
           child: MediaRow(
             title: 'Your artists',
             children: [
-              for (final artist
-                  in (recentArtists.valueOrNull ?? const <RecentArtist>[]).take(
-                    10,
-                  ))
+              for (final artist in (recentArtists.valueOrNull ??
+                      const <RecentArtist>[])
+                  .take(10))
                 ArtistAvatarCard(
                   artistId: artist.id,
                   name: artist.name,
@@ -152,10 +163,9 @@ class HomeFeed extends ConsumerWidget {
           child: MediaRow(
             title: 'Albums you opened',
             children: [
-              for (final album
-                  in (recentAlbums.valueOrNull ?? const <RecentAlbum>[]).take(
-                    12,
-                  ))
+              for (final album in (recentAlbums.valueOrNull ??
+                      const <RecentAlbum>[])
+                  .take(12))
                 MediaCard(
                   imageUrl: album.imageUrl,
                   title: album.name,
@@ -167,7 +177,8 @@ class HomeFeed extends ConsumerWidget {
                         pathParameters: {'albumId': album.id},
                         queryParameters: {
                           if (album.name.isNotEmpty) 'name': album.name,
-                          if (album.imageUrl.isNotEmpty) 'image': album.imageUrl,
+                          if (album.imageUrl.isNotEmpty)
+                            'image': album.imageUrl,
                         },
                       ),
                 ),

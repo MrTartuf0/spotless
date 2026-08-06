@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:spotACrack/screens/app_shell.dart';
 import 'package:spotACrack/screens/artist_page.dart';
 import 'package:spotACrack/screens/album_page.dart';
+import 'package:spotACrack/services/media_session_service.dart';
 import 'package:spotACrack/utils/responsive.dart';
 
 /// Every route renders inside [AppShell]. Artist and album pages are pushed
@@ -61,7 +62,22 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Artwork is everywhere, and Flutter's default image cache holds up to
+  // ~100 MB of decoded bitmaps. Capping it keeps the resident set down; paired
+  // with decode-at-display-size (`cacheWidth` on the artwork widgets) the cap
+  // is rarely hit anyway.
+  final imageCache = PaintingBinding.instance.imageCache;
+  imageCache.maximumSizeBytes = 40 * 1024 * 1024; // 40 MB of decoded artwork
+  imageCache.maximumSize = 200; // distinct images
+
+  // Has to come up before the UI: the OS binds to the media session as the
+  // app starts, and that is what puts the transport controls on the lock
+  // screen, in Control Center and on the CarPlay Now Playing screen.
+  await MediaSession.instance.init();
+
   runApp(const ProviderScope(child: MyApp()));
 }
 

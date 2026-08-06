@@ -53,10 +53,7 @@ class _MediaCardState extends State<MediaCard> {
                   borderRadius: BorderRadius.circular(
                     widget.circular ? widget.size : 8,
                   ),
-                  child: _Artwork(
-                    imageUrl: widget.imageUrl,
-                    size: widget.size,
-                  ),
+                  child: _Artwork(imageUrl: widget.imageUrl, size: widget.size),
                 ),
               ),
               const SizedBox(height: 8),
@@ -110,6 +107,8 @@ class _Artwork extends StatelessWidget {
       height: size,
       width: size,
       fit: BoxFit.cover,
+      // Decode at display size, not the artwork's native resolution.
+      cacheWidth: context.cachePx(size),
       errorBuilder: (_, __, ___) => _placeholder(),
       // Fade in rather than popping once the bytes land.
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {

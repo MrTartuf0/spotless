@@ -66,29 +66,33 @@ class _TrackItemState extends ConsumerState<TrackItem> {
             children: [
               SizedBox(
                 width: 28,
-                child: _hovered
-                    ? Icon(Icons.play_arrow, size: 18, color: accent)
-                    : Text(
-                        '${widget.index}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: playing
-                              ? const Color(0xff1BD760)
-                              : const Color(0xB3FFFFFF),
+                child:
+                    _hovered
+                        ? Icon(Icons.play_arrow, size: 18, color: accent)
+                        : Text(
+                          '${widget.index}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color:
+                                playing
+                                    ? const Color(0xff1BD760)
+                                    : const Color(0xB3FFFFFF),
+                          ),
                         ),
-                      ),
               ),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: widget.imageUrl.startsWith('http')
-                    ? Image.network(
-                        widget.imageUrl,
-                        width: 42,
-                        height: 42,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholder(),
-                      )
-                    : _placeholder(),
+                child:
+                    widget.imageUrl.startsWith('http')
+                        ? Image.network(
+                          widget.imageUrl,
+                          width: 42,
+                          height: 42,
+                          fit: BoxFit.cover,
+                          cacheWidth: context.cachePx(42),
+                          errorBuilder: (_, __, ___) => _placeholder(),
+                        )
+                        : _placeholder(),
               ),
               const SizedBox(width: 14),
               Expanded(

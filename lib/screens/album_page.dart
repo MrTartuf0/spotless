@@ -71,8 +71,9 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
 
   Future<void> _fetch() async {
     try {
-      final album =
-          await ref.read(trackRepositoryProvider).getAlbum(widget.albumId);
+      final album = await ref
+          .read(trackRepositoryProvider)
+          .getAlbum(widget.albumId);
       if (!mounted) return;
       setState(() {
         _album = album;
@@ -105,18 +106,37 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
     }
   }
 
-  void _playAll() {
-    final tracks = _album?.tracks ?? const <AlbumTrack>[];
+  /// The album as queue rows, artwork falling back to the album cover for
+  /// tracks that carry none.
+  List<Map<String, dynamic>> _queueTracks() {
+    final album = _album;
+    if (album == null) return const [];
+    return [
+      for (final t in album.tracks)
+        {
+          'id': t.id,
+          'name': t.name,
+          'artist': t.artist,
+          'imageUrl': t.imageUrl.isNotEmpty ? t.imageUrl : album.imageUrl,
+        },
+    ];
+  }
+
+  void _playFrom(int index) {
+    final tracks = _queueTracks();
     if (tracks.isEmpty) return;
-    ref.read(audioPlayerProvider.notifier).loadTrack(tracks.first.id);
+    ref
+        .read(audioPlayerProvider.notifier)
+        .playAlbum(tracks, index, albumName: _album?.name ?? '');
   }
 
   @override
   Widget build(BuildContext context) {
     final album = _album;
-    final headerImage = album?.imageUrl.isNotEmpty == true
-        ? album!.imageUrl
-        : widget.fallbackImage;
+    final headerImage =
+        album?.imageUrl.isNotEmpty == true
+            ? album!.imageUrl
+            : widget.fallbackImage;
     final title =
         album?.name.isNotEmpty == true ? album!.name : widget.fallbackName;
 
@@ -136,7 +156,8 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
                 artistId: album?.artistId ?? '',
                 trackCount: album?.tracks.length ?? 0,
                 dominantColor: _dominantColor,
-                onPlay: (album?.tracks.isEmpty ?? true) ? null : _playAll,
+                onPlay:
+                    (album?.tracks.isEmpty ?? true) ? null : () => _playFrom(0),
               ),
             ),
 
@@ -163,10 +184,12 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
             else
               SliverList.builder(
                 itemCount: album!.tracks.length,
-                itemBuilder: (context, index) => _AlbumTrackRow(
-                  index: index + 1,
-                  track: album.tracks[index],
-                ),
+                itemBuilder:
+                    (context, index) => _AlbumTrackRow(
+                      index: index + 1,
+                      track: album.tracks[index],
+                      onPlay: () => _playFrom(index),
+                    ),
               ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
@@ -277,22 +300,23 @@ class _AlbumHeader extends StatelessWidget {
         context.pagePadding,
         24,
       ),
-      child: wide
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _Artwork(imageUrl: imageUrl, size: artSize),
-                const SizedBox(width: 28),
-                Expanded(child: meta),
-              ],
-            )
-          : Column(
-              children: [
-                _Artwork(imageUrl: imageUrl, size: artSize),
-                const SizedBox(height: 20),
-                meta,
-              ],
-            ),
+      child:
+          wide
+              ? Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _Artwork(imageUrl: imageUrl, size: artSize),
+                  const SizedBox(width: 28),
+                  Expanded(child: meta),
+                ],
+              )
+              : Column(
+                children: [
+                  _Artwork(imageUrl: imageUrl, size: artSize),
+                  const SizedBox(height: 20),
+                  meta,
+                ],
+              ),
     );
   }
 }
@@ -320,13 +344,15 @@ class _Artwork extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: imageUrl.startsWith('http')
-            ? Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _placeholder(),
-              )
-            : _placeholder(),
+        child:
+            imageUrl.startsWith('http')
+                ? Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  cacheWidth: context.cachePx(size),
+                  errorBuilder: (_, __, ___) => _placeholder(),
+                )
+                : _placeholder(),
       ),
     );
   }
@@ -367,7 +393,8 @@ class _PlayFabState extends State<_PlayFab> {
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: enabled ? const Color(0xff1BD760) : const Color(0x331BD760),
+              color:
+                  enabled ? const Color(0xff1BD760) : const Color(0x331BD760),
             ),
             child: const Icon(Icons.play_arrow, size: 32, color: Colors.black),
           ),
@@ -380,8 +407,13 @@ class _PlayFabState extends State<_PlayFab> {
 class _AlbumTrackRow extends ConsumerStatefulWidget {
   final int index;
   final AlbumTrack track;
+  final VoidCallback onPlay;
 
-  const _AlbumTrackRow({required this.index, required this.track});
+  const _AlbumTrackRow({
+    required this.index,
+    required this.track,
+    required this.onPlay,
+  });
 
   @override
   ConsumerState<_AlbumTrackRow> createState() => _AlbumTrackRowState();
@@ -393,9 +425,7 @@ class _AlbumTrackRowState extends ConsumerState<_AlbumTrackRow> {
   @override
   Widget build(BuildContext context) {
     final playing = ref.watch(
-      audioPlayerProvider.select(
-        (s) => s.currentTrackId == widget.track.id,
-      ),
+      audioPlayerProvider.select((s) => s.currentTrackId == widget.track.id),
     );
     final accent = playing ? const Color(0xff1BD760) : Colors.white;
 
@@ -404,8 +434,7 @@ class _AlbumTrackRowState extends ConsumerState<_AlbumTrackRow> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: () =>
-            ref.read(audioPlayerProvider.notifier).loadTrack(widget.track.id),
+        onTap: widget.onPlay,
         child: Container(
           margin: EdgeInsets.symmetric(horizontal: context.pagePadding),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -417,17 +446,19 @@ class _AlbumTrackRowState extends ConsumerState<_AlbumTrackRow> {
             children: [
               SizedBox(
                 width: 28,
-                child: _hovered
-                    ? Icon(Icons.play_arrow, size: 18, color: accent)
-                    : Text(
-                        '${widget.index}',
-                        style: TextStyle(
-                          color: playing
-                              ? const Color(0xff1BD760)
-                              : Colors.white54,
-                          fontSize: 14,
+                child:
+                    _hovered
+                        ? Icon(Icons.play_arrow, size: 18, color: accent)
+                        : Text(
+                          '${widget.index}',
+                          style: TextStyle(
+                            color:
+                                playing
+                                    ? const Color(0xff1BD760)
+                                    : Colors.white54,
+                            fontSize: 14,
+                          ),
                         ),
-                      ),
               ),
               Expanded(
                 child: Column(

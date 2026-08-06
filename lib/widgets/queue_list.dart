@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
-import 'package:spotACrack/providers/recommendations_provider.dart';
+import 'package:spotACrack/utils/responsive.dart';
 
-/// The station queued behind the current track.
+/// The tracks lined up to play next, straight from the player's queue.
 ///
-/// Playback pulls one song at a time from the same station, so this is a
-/// preview of where it is heading rather than a fixed list — tapping an entry
-/// jumps straight to it.
+/// This renders `AudioPlayerState.queue` — the exact list playback consumes —
+/// so what the user sees here is what will actually play. Tapping a row jumps
+/// to it and keeps everything after it queued.
 ///
 /// Shared by the mobile "Up next" sheet and the docked desktop queue panel.
 class QueueList extends ConsumerWidget {
@@ -25,46 +25,42 @@ class QueueList extends ConsumerWidget {
       return const _QueueMessage('Play something to build a queue');
     }
 
-    final station = ref.watch(
-      recommendedTracksProvider(audioState.currentTrackId),
-    );
+    final queue = audioState.queue;
 
-    return station.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 40),
-        child: Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xff1BD760)),
+    if (queue.isEmpty) {
+      // The radio queue seeds a moment after a track starts.
+      if (audioState.isNextTrackLoading) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xff1BD760)),
+              ),
             ),
           ),
-        ),
-      ),
-      error: (_, __) => const _QueueMessage('Could not load the queue'),
-      data: (tracks) {
-        if (tracks.isEmpty) return const _QueueMessage('Nothing queued');
+        );
+      }
+      return const _QueueMessage('Nothing queued');
+    }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          padding: const EdgeInsets.only(bottom: 24),
-          itemCount: tracks.length,
-          itemBuilder: (context, i) {
-            final track = tracks[i];
-            return QueueTile(
-              position: i + 1,
-              imageUrl: track['imageUrl'] as String? ?? '',
-              title: track['name'] as String? ?? '',
-              artist: track['artist'] as String? ?? '',
-              onTap: () {
-                if (popOnTap) Navigator.pop(context);
-                ref
-                    .read(audioPlayerProvider.notifier)
-                    .loadTrack(track['id'] as String);
-              },
-            );
+    return ListView.builder(
+      shrinkWrap: true,
+      padding: const EdgeInsets.only(bottom: 24),
+      itemCount: queue.length,
+      itemBuilder: (context, i) {
+        final track = queue[i];
+        return QueueTile(
+          position: i + 1,
+          imageUrl: track['imageUrl'] as String? ?? '',
+          title: track['name'] as String? ?? '',
+          artist: track['artist'] as String? ?? '',
+          onTap: () {
+            if (popOnTap) Navigator.pop(context);
+            ref.read(audioPlayerProvider.notifier).playQueueItemAt(i);
           },
         );
       },
@@ -127,15 +123,17 @@ class QueueTile extends StatelessWidget {
             ),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: imageUrl.startsWith('http')
-                  ? Image.network(
-                      imageUrl,
-                      height: 44,
-                      width: 44,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder(),
-                    )
-                  : _placeholder(),
+              child:
+                  imageUrl.startsWith('http')
+                      ? Image.network(
+                        imageUrl,
+                        height: 44,
+                        width: 44,
+                        fit: BoxFit.cover,
+                        cacheWidth: context.cachePx(44),
+                        errorBuilder: (_, __, ___) => _placeholder(),
+                      )
+                      : _placeholder(),
             ),
             const SizedBox(width: 12),
             Expanded(

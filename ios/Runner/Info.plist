@@ -51,5 +51,12 @@
 		<true />
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true />
+		<!-- Required for playback to continue with the screen locked or the app
+		     backgrounded, which is also what keeps the Now Playing controls
+		     (lock screen, Control Center, CarPlay) alive. -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>audio</string>
+		</array>
 	</dict>
 </plist>

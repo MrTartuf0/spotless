@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spotACrack/providers/artist_provider.dart';
 import 'package:spotACrack/providers/history_provider.dart';
+import 'package:spotACrack/utils/responsive.dart';
 
 /// Circular artist card for the Home shelf and the library's Artists filter.
 ///
@@ -46,9 +47,10 @@ class ArtistAvatarCard extends ConsumerWidget {
     }
 
     return InkWell(
-      onTap: artistId.isEmpty
-          ? null
-          : () => context.push(
+      onTap:
+          artistId.isEmpty
+              ? null
+              : () => context.push(
                 '/artist/$artistId'
                 '?name=${Uri.encodeComponent(label)}'
                 '&image=${Uri.encodeComponent(image)}',
@@ -60,15 +62,17 @@ class ArtistAvatarCard extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ClipOval(
-              child: image.startsWith('http')
-                  ? Image.network(
-                      image,
-                      width: size,
-                      height: size,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder(),
-                    )
-                  : _placeholder(),
+              child:
+                  image.startsWith('http')
+                      ? Image.network(
+                        image,
+                        width: size,
+                        height: size,
+                        fit: BoxFit.cover,
+                        cacheWidth: context.cachePx(size),
+                        errorBuilder: (_, __, ___) => _placeholder(),
+                      )
+                      : _placeholder(),
             ),
             const SizedBox(height: 10),
             Row(
@@ -89,7 +93,11 @@ class ArtistAvatarCard extends ConsumerWidget {
                 ),
                 if (verified) ...[
                   const SizedBox(width: 4),
-                  const Icon(Icons.verified, size: 13, color: Color(0xff4CB3FF)),
+                  const Icon(
+                    Icons.verified,
+                    size: 13,
+                    color: Color(0xff4CB3FF),
+                  ),
                 ],
               ],
             ),

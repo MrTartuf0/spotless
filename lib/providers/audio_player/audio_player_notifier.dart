@@ -11,6 +11,7 @@ import 'package:spotACrack/repositories/track_repository.dart';
 import 'package:spotACrack/services/color_extractor.dart';
 import 'package:spotACrack/services/audio_service.dart';
 import 'package:spotACrack/services/history_service.dart';
+import 'package:spotACrack/services/media_session_service.dart';
 import 'package:spotACrack/providers/searchbar_provider.dart';
 
 class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
@@ -27,6 +28,9 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   // Guards against a double-tap on next/prev starting two loads at once, which
   // leaves the history index and the player disagreeing about what is playing.
   bool _isSwitchingTrack = false;
+  // Serialises radio-queue fetches so the seed-on-load and the prefetch-on-
+  // position don't both hit the station at once.
+  bool _queueBusy = false;
   Completer<void>? _pendingCompletion;
   DateTime _lastCompletionTime = DateTime.now();
 
@@ -54,6 +58,86 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       onTrackComplete: _safeHandleCompletion,
       onPrefetchNeeded: _prefetchNextTrack,
       progressChecker: (ignored) => state.progress,
+    );
+
+    _initializeMediaSession();
+  }
+
+  // ---------------------------------------------------------------------------
+  // OS media session (lock screen, Control Center, CarPlay, Android Auto)
+  //
+  // Remote buttons come in through the callbacks below and go through exactly
+  // the same methods the in-app controls use, so there is only one code path
+  // per action. State goes back out through a single StateNotifier listener.
+  // ---------------------------------------------------------------------------
+
+  // What the session was last told, so a position tick every ~200ms doesn't
+  // turn into a platform channel call every ~200ms.
+  String _sessionTrackId = '';
+  Duration _sessionDuration = Duration.zero;
+  bool? _sessionPlaying;
+  bool? _sessionLoading;
+  Duration _sessionPosition = Duration.zero;
+
+  void _initializeMediaSession() {
+    if (!MediaSession.isSupported) return;
+
+    MediaSession.instance.attach(
+      // The remote sends explicit play and pause, never a toggle, so these
+      // check the current state before reusing togglePlayPause.
+      onPlay: () {
+        if (!state.isPlaying) togglePlayPause();
+      },
+      onPause: () {
+        if (state.isPlaying) togglePlayPause();
+      },
+      onNext: playNextTrack,
+      onPrevious: playPreviousTrack,
+      onStop: () => _playbackService.stop(),
+      onSeek: seekTo,
+    );
+
+    addListener(_syncMediaSession, fireImmediately: false);
+  }
+
+  void _syncMediaSession(AudioPlayerState current) {
+    if (!MediaSession.isSupported) return;
+
+    if (current.currentTrackId.isNotEmpty &&
+        (current.currentTrackId != _sessionTrackId ||
+            current.totalDuration != _sessionDuration)) {
+      _sessionTrackId = current.currentTrackId;
+      _sessionDuration = current.totalDuration;
+
+      MediaSession.instance.setItem(
+        id: current.currentTrackId,
+        title: current.currentTrackTitle,
+        artist: current.currentTrackArtist,
+        album: current.currentAlbumName,
+        artworkUrl: current.currentTrackImage,
+        duration: current.totalDuration,
+      );
+    }
+
+    // The OS extrapolates the scrubber from the last position it was given,
+    // so this only needs to publish on transitions — plus an occasional
+    // correction for drift.
+    final transitioned =
+        current.isPlaying != _sessionPlaying ||
+        current.isLoading != _sessionLoading;
+    final drifted =
+        (current.currentPosition - _sessionPosition).abs().inSeconds >= 5;
+    if (!transitioned && !drifted) return;
+
+    _sessionPlaying = current.isPlaying;
+    _sessionLoading = current.isLoading;
+    _sessionPosition = current.currentPosition;
+
+    MediaSession.instance.setPlaybackState(
+      playing: current.isPlaying,
+      loading: current.isLoading,
+      position: current.currentPosition,
+      hasPrevious: current.index > 0,
     );
   }
 
@@ -153,16 +237,20 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     _completionService.cancelTrackEndTimer();
     _completionService.cancelWatchdogTimer();
 
-    // Check repeat mode
+    // Repeat-one replays the same track; everything else advances the queue.
     if (state.repeatMode == 2) {
-      // Repeat one - play the same track again
       print("Repeat One mode: replaying current track");
       await _replayCurrentTrack();
-    } else {
-      // Play next track
-      print("Playing next track after completion");
-      await _playNextTrackAfterCompletion();
+      return;
     }
+
+    state = state.copyWith(
+      currentPosition: state.totalDuration,
+      isPlaying: false,
+      isTrackEnding: false,
+    );
+    await _playbackService.stop();
+    await _advance();
   }
 
   Future<void> _replayCurrentTrack() async {
@@ -178,138 +266,135 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     await playStream(fromBeginning: true);
   }
 
-  Future<void> _playNextTrackAfterCompletion() async {
-    // Update state to reflect completion
-    state = state.copyWith(
-      currentPosition: state.totalDuration,
-      isPlaying: false,
-      isTrackEnding: false,
-    );
+  /// Moves to the next track. This is the one place that decides what plays
+  /// next, so the button, the completion handler and the queue can never
+  /// disagree about it.
+  ///
+  /// Order of preference:
+  ///  1. A track already ahead in the visited history (you pressed *previous*
+  ///     earlier and are now walking forward again).
+  ///  2. The head of the explicit [AudioPlayerState.queue] — the album
+  ///     remainder, or the radio snapshot the Up-next list is showing.
+  ///  3. Repeat-all: refill the queue from the album and start it over.
+  ///  4. The open-ended station as a last resort (queue not yet seeded, or an
+  ///     album finished with repeat off — autoplay carries on like Spotify).
+  Future<void> _advance() async {
+    if (state.currentTrackId.isEmpty) return;
+    state = state.copyWith(isLoading: true);
 
-    // Stop current playback
-    await _playbackService.stop();
-
-    // Play next track
-    await _playNextTrack();
-  }
-
-  bool _shouldPrefetchNextTrack() {
     final nextIndex = state.index + 1;
-
-    // Check if we already have the next track in history
     if (nextIndex < state.trackIdHistory.length &&
         state.trackIdHistory[nextIndex].isNotEmpty) {
-      return false;
+      print('Advancing through visited history to index $nextIndex');
+      await _loadTrack(
+        state.trackIdHistory[nextIndex],
+        historyIndex: nextIndex,
+      );
+      return;
     }
 
-    // Don't prefetch if we're at the end of available tracks
-    if (state.hasNextTrack == false) {
-      return false;
+    // Repeat-all wrap: the album drained, so queue it again from the top.
+    if (state.queue.isEmpty &&
+        state.repeatMode == 1 &&
+        state.contextTracks.isNotEmpty) {
+      print('Repeat All: wrapping to the start of the context');
+      state = state.copyWith(queue: List.of(state.contextTracks));
     }
 
-    return true;
+    if (state.queue.isNotEmpty) {
+      final next = Map<String, dynamic>.of(state.queue.first);
+      state = state.copyWith(queue: state.queue.sublist(1));
+      final id = next['id'] as String? ?? '';
+      if (id.isNotEmpty) {
+        print('Advancing to queued track $id');
+        await _loadTrack(id, resetContext: false);
+        // Keep radio queues from running dry; album queues are left fixed.
+        unawaited(_ensureQueueReady());
+        return;
+      }
+    }
+
+    print('Queue empty; falling back to the station');
+    await _playFromStation();
   }
 
-  Future<void> _prefetchNextTrack() async {
+  /// Last-resort next track: one song from the autoplay station, then the
+  /// older random-by-artist endpoint. Used when the queue is empty — a
+  /// standalone track whose seed has not landed, or an album finished with
+  /// repeat off.
+  Future<void> _playFromStation() async {
     try {
-      // Don't proceed if there's no current track ID
-      if (state.currentTrackId.isEmpty) {
-        return;
-      }
-
-      print('Fetching next track to add to history');
-
-      // Check if we already have a next track
-      final nextIndex = state.index + 1;
-      if (nextIndex < state.trackIdHistory.length &&
-          state.trackIdHistory[nextIndex].isNotEmpty) {
-        print('Next track already exists in history');
-        return;
-      }
-
-      if (state.isNextTrackLoading) {
-        print('Next track is already loading');
-        return;
-      }
-
-      state = state.copyWith(isNextTrackLoading: true);
-
-      final nextTrackInfo = await _queueService.fetchNextTrack(
+      final info = await _queueService.fetchNextTrack(
         state.currentTrackId,
         exclude: state.trackIdHistory,
       );
-
-      if (nextTrackInfo['id'] == null || nextTrackInfo['id'].isEmpty) {
-        print('No next track available');
-        state = state.copyWith(hasNextTrack: false);
+      final id = info['id'] as String? ?? '';
+      if (id.isEmpty) {
+        print('Station had nothing new');
+        state = state.copyWith(isLoading: false, hasNextTrack: false);
         return;
       }
-
-      final newTrackId = nextTrackInfo['id'] as String;
-      final updatedHistory = List<String>.from(state.trackIdHistory);
-      if (nextIndex >= updatedHistory.length) {
-        updatedHistory.add(newTrackId);
-      } else {
-        updatedHistory[nextIndex] = newTrackId;
-      }
-
-      state = state.copyWith(trackIdHistory: updatedHistory);
-      print('Queued track $newTrackId at position $nextIndex');
+      // resetContext leaves any album behind and re-seeds a fresh radio queue.
+      await _loadTrack(id, resetContext: true);
     } catch (e) {
-      print('Error fetching next track: $e');
-      state = state.copyWith(hasNextTrack: false);
+      print('Error playing from station: $e');
+      state = state.copyWith(isLoading: false, hasNextTrack: false);
+    }
+  }
+
+  /// True while the radio queue is short enough to be worth topping up. Album
+  /// queues are fixed, so they are never topped up.
+  bool _shouldPrefetchNextTrack() =>
+      state.contextTracks.isEmpty && state.queue.length < 3;
+
+  /// Fills the radio queue when it is empty (seed) or getting short (top up),
+  /// from the same station list the Up-next UI shows. No-op for album queues,
+  /// which are fixed. Guarded so overlapping calls (seed on load + prefetch on
+  /// position) don't double-fetch.
+  Future<void> _ensureQueueReady() async {
+    if (_queueBusy) return;
+    if (state.contextTracks.isNotEmpty) return;
+    if (state.queue.length >= 3) return;
+
+    final seed = state.currentTrackId;
+    if (seed.isEmpty) return;
+
+    _queueBusy = true;
+    state = state.copyWith(isNextTrackLoading: true);
+    try {
+      final exclude = <String>[
+        ...state.trackIdHistory,
+        ...state.queue.map((t) => t['id'] as String? ?? ''),
+      ];
+      final more = await _queueService.fetchStationQueue(
+        seed,
+        exclude: exclude,
+      );
+
+      // An album may have taken over while we were fetching.
+      if (state.contextTracks.isNotEmpty) return;
+
+      final have = <String>{seed, ...exclude};
+      final merged = List<Map<String, dynamic>>.of(state.queue);
+      for (final t in more) {
+        final id = t['id'] as String? ?? '';
+        if (id.isNotEmpty && have.add(id)) merged.add(t);
+      }
+      state = state.copyWith(
+        queue: merged,
+        queueOrigin: state.queueOrigin.isEmpty ? 'Radio' : state.queueOrigin,
+        hasNextTrack: merged.isNotEmpty,
+      );
+    } catch (e) {
+      print('Error readying queue: $e');
     } finally {
+      _queueBusy = false;
       state = state.copyWith(isNextTrackLoading: false);
     }
   }
 
-  Future<void> _playNextTrack() async {
-    try {
-      // Don't proceed if there's no current track ID
-      if (state.currentTrackId.isEmpty) {
-        print('Cannot play next track: No current track ID');
-        return;
-      }
-
-      print(
-        'Playing next track from current track ID: ${state.currentTrackId}',
-      );
-      state = state.copyWith(isLoading: true);
-
-      // Check if we have the next track in history
-      final nextIndex = state.index + 1;
-      if (nextIndex < state.trackIdHistory.length &&
-          state.trackIdHistory[nextIndex].isNotEmpty) {
-        print(
-          'Playing next track from history: ${state.trackIdHistory[nextIndex]}',
-        );
-        await _loadTrack(
-          state.trackIdHistory[nextIndex],
-          historyIndex: nextIndex,
-        );
-        return;
-      }
-
-      // If no track in history, fetch a new one
-      print('Fetching next track as none found in history');
-      final nextTrackInfo = await _queueService.fetchNextTrack(
-        state.currentTrackId,
-        exclude: state.trackIdHistory,
-      );
-
-      if (nextTrackInfo['id'] == null || nextTrackInfo['id'].isEmpty) {
-        print('No next track available');
-        state = state.copyWith(isLoading: false, hasNextTrack: false);
-        return;
-      }
-
-      // Load and play the track
-      await _loadTrack(nextTrackInfo['id']);
-    } catch (e) {
-      print('Error playing next track: $e');
-      state = state.copyWith(isLoading: false, hasNextTrack: false);
-    }
-  }
+  /// Prefetch hook fired from position updates — just keeps the queue ready.
+  Future<void> _prefetchNextTrack() => _ensureQueueReady();
 
   // Public API methods
   Future<void> extractDominantColor(String imageUrl) async {
@@ -335,8 +420,48 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     }
   }
 
+  /// Plays a single track on its own — from search, the home rows, the library.
+  ///
+  /// This leaves whatever album context was playing and starts a fresh radio
+  /// queue seeded from [trackId], so "next" continues in that track's world.
   Future<void> loadTrack(String trackId, {bool addToHistory = true}) async {
-    await _loadTrack(trackId, addToHistory: addToHistory);
+    await _loadTrack(trackId, addToHistory: addToHistory, resetContext: true);
+  }
+
+  /// Plays [tracks] as an ordered context (an album), starting at [startIndex].
+  ///
+  /// The remaining tracks become the queue and the full list is remembered so
+  /// repeat-all can loop it. This is what makes "play an album" actually play
+  /// the album through rather than wandering off into the station.
+  Future<void> playAlbum(
+    List<Map<String, dynamic>> tracks,
+    int startIndex, {
+    String albumName = '',
+  }) async {
+    if (tracks.isEmpty) return;
+    final start = startIndex.clamp(0, tracks.length - 1);
+
+    state = state.copyWith(
+      contextTracks: List.of(tracks),
+      queue: tracks.sublist(start + 1),
+      queueOrigin: albumName.isEmpty ? 'Album' : albumName,
+    );
+
+    final id = tracks[start]['id'] as String? ?? '';
+    await _loadTrack(id, resetContext: false);
+  }
+
+  /// Jumps to the queue entry at [index], dropping everything before it so the
+  /// tracks after it stay queued. Used when tapping an Up-next row.
+  Future<void> playQueueItemAt(int index) async {
+    if (index < 0 || index >= state.queue.length) return;
+    final item = Map<String, dynamic>.of(state.queue[index]);
+    final id = item['id'] as String? ?? '';
+    if (id.isEmpty) return;
+
+    state = state.copyWith(queue: state.queue.sublist(index + 1));
+    await _loadTrack(id, resetContext: false);
+    unawaited(_ensureQueueReady());
   }
 
   /// Loads and plays [trackId].
@@ -345,10 +470,15 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
   /// history, for prev/next navigation. Without it the pointer would stay put
   /// and the track would be written over the slot the listener is currently on,
   /// which makes every later "next" replay the same song.
+  ///
+  /// [resetContext] leaves any album behind and seeds a fresh radio queue —
+  /// set for standalone plays, cleared when the caller is itself managing the
+  /// queue (album playback, queue advance, jumping within the queue).
   Future<void> _loadTrack(
     String trackId, {
     bool addToHistory = true,
     int? historyIndex,
+    bool resetContext = false,
   }) async {
     try {
       // Ensure keyboard is hidden and bottom player is visible
@@ -358,6 +488,16 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
       // Don't proceed if trackId is empty
       if (trackId.isEmpty) return;
+
+      // A standalone play leaves any album behind and drops its queue; the
+      // radio queue is re-seeded from the new track once its data lands.
+      if (resetContext) {
+        state = state.copyWith(
+          queue: const [],
+          contextTracks: const [],
+          queueOrigin: '',
+        );
+      }
 
       // First, stop any existing playback and reset player state
       await _playbackService.stop();
@@ -429,15 +569,17 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       // Fire-and-forget: record in local history. Failures here must never
       // break playback, so errors are swallowed.
       unawaited(
-        HistoryService().recordTrack(
-          id: trackId,
-          title: trackInfo['title'] as String,
-          artist: trackInfo['artist'] as String,
-          artistId: trackInfo['artistId'] as String,
-          imageUrl: trackInfo['imageUrl'] as String,
-        ).catchError((e) {
-          print('Failed to record track in history: $e');
-        }),
+        HistoryService()
+            .recordTrack(
+              id: trackId,
+              title: trackInfo['title'] as String,
+              artist: trackInfo['artist'] as String,
+              artistId: trackInfo['artistId'] as String,
+              imageUrl: trackInfo['imageUrl'] as String,
+            )
+            .catchError((e) {
+              print('Failed to record track in history: $e');
+            }),
       );
 
       // Same for the artist, which is what fills the artists shelf on Home
@@ -445,12 +587,11 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       final artistId = trackInfo['artistId'] as String;
       if (artistId.isNotEmpty) {
         unawaited(
-          HistoryService().recordArtist(
-            id: artistId,
-            name: trackInfo['artist'] as String,
-          ).catchError((e) {
-            print('Failed to record artist in history: $e');
-          }),
+          HistoryService()
+              .recordArtist(id: artistId, name: trackInfo['artist'] as String)
+              .catchError((e) {
+                print('Failed to record artist in history: $e');
+              }),
         );
       }
 
@@ -464,6 +605,10 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
 
       // Update loading state
       state = state.copyWith(isLoading: false);
+
+      // A standalone play starts a fresh radio queue from this track. Album
+      // and queue-advance plays manage their own queue and skip this.
+      if (resetContext) unawaited(_ensureQueueReady());
 
       // Line up the next track once playback has settled.
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -563,24 +708,15 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       return;
     }
 
+    // The Next button skips even in repeat-one, so it always advances the
+    // queue rather than replaying.
     if (_isSwitchingTrack) {
       print('Already switching track, ignoring');
       return;
     }
     _isSwitchingTrack = true;
-
     try {
-      if (state.index + 1 < state.trackIdHistory.length &&
-          state.trackIdHistory[state.index + 1].isNotEmpty) {
-        final nextIndex = state.index + 1;
-        final nextTrackId = state.trackIdHistory[nextIndex];
-        print('Playing next track from history: $nextTrackId');
-        await _loadTrack(nextTrackId, historyIndex: nextIndex);
-        return;
-      }
-
-      print('Fetching next track as none found in history');
-      await _playNextTrack();
+      await _advance();
     } finally {
       _isSwitchingTrack = false;
     }
@@ -680,7 +816,8 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
       await _playbackService.setVolume(0);
       state = state.copyWith(volume: 0, volumeBeforeMute: previous);
     } else {
-      final restored = state.volumeBeforeMute > 0 ? state.volumeBeforeMute : 1.0;
+      final restored =
+          state.volumeBeforeMute > 0 ? state.volumeBeforeMute : 1.0;
       await _playbackService.setVolume(restored);
       state = state.copyWith(volume: restored);
     }
@@ -695,6 +832,9 @@ class AudioPlayerNotifier extends StateNotifier<AudioPlayerState> {
     // Stop any playing audio when disposing
     _playbackService.stop();
     _completionService.dispose();
+    // Otherwise the lock screen keeps offering controls for a player that is
+    // no longer there.
+    MediaSession.instance.clear();
     super.dispose();
   }
 }

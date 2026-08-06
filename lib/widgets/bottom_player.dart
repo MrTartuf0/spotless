@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 
 import 'package:spotACrack/widgets/sheet_player.dart';
 import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
+import 'package:spotACrack/utils/responsive.dart';
 
 class BottomPlayer extends ConsumerWidget {
   const BottomPlayer({super.key});
@@ -79,6 +80,7 @@ class BottomPlayer extends ConsumerWidget {
                                     height: 40,
                                     width: 40,
                                     fit: BoxFit.cover,
+                                    cacheWidth: context.cachePx(40),
                                     errorBuilder: (context, error, stackTrace) {
                                       return _buildPlaceholderImage();
                                     },

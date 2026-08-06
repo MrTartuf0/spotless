@@ -32,6 +32,23 @@ class AudioPlayerState {
   final bool isTrackEnding;
   final List<String> trackIdHistory;
 
+  /// The tracks lined up to play after the current one, front first, each with
+  /// enough metadata to render a row (`id`, `name`, `artist`, `imageUrl`).
+  ///
+  /// This is the single source of truth for "what plays next": the Up-next UI
+  /// renders it and playback consumes its head, so the two can never disagree.
+  /// It is seeded from the album when one is playing, otherwise from the
+  /// autoplay station.
+  final List<Map<String, dynamic>> queue;
+
+  /// The full ordered track list of the current context (an album), same shape
+  /// as [queue], kept so repeat-all can refill [queue] from the top once it
+  /// drains. Empty when the context is the open-ended radio station.
+  final List<Map<String, dynamic>> contextTracks;
+
+  /// Human label for where the queue came from — an album name, or 'Radio'.
+  final String queueOrigin;
+
   /// Output level, 0..1.
   final double volume;
 
@@ -40,6 +57,9 @@ class AudioPlayerState {
   final double volumeBeforeMute;
 
   const AudioPlayerState({
+    this.queue = const [],
+    this.contextTracks = const [],
+    this.queueOrigin = '',
     this.volume = 1.0,
     this.volumeBeforeMute = 1.0,
     this.isNextTrackLoading = false,
@@ -87,10 +107,16 @@ class AudioPlayerState {
     bool? isExtractingColor,
     bool? isTrackEnding,
     List<String>? trackIdHistory,
+    List<Map<String, dynamic>>? queue,
+    List<Map<String, dynamic>>? contextTracks,
+    String? queueOrigin,
     double? volume,
     double? volumeBeforeMute,
   }) {
     return AudioPlayerState(
+      queue: queue ?? this.queue,
+      contextTracks: contextTracks ?? this.contextTracks,
+      queueOrigin: queueOrigin ?? this.queueOrigin,
       volume: volume ?? this.volume,
       volumeBeforeMute: volumeBeforeMute ?? this.volumeBeforeMute,
       hasNextTrack: hasNextTrack ?? this.hasNextTrack,

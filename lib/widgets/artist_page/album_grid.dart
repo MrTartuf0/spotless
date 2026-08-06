@@ -107,9 +107,10 @@ class _AlbumCardState extends State<AlbumCard> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: album.id.isEmpty
-            ? null
-            : () => context.pushNamed(
+        onTap:
+            album.id.isEmpty
+                ? null
+                : () => context.pushNamed(
                   'album',
                   pathParameters: {'albumId': album.id},
                   queryParameters: {
@@ -134,13 +135,15 @@ class _AlbumCardState extends State<AlbumCard> {
                   borderRadius: BorderRadius.circular(6),
                   child: AspectRatio(
                     aspectRatio: 1,
-                    child: album.imageUrl.startsWith('http')
-                        ? Image.network(
-                            album.imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _placeholder(),
-                          )
-                        : _placeholder(),
+                    child:
+                        album.imageUrl.startsWith('http')
+                            ? Image.network(
+                              album.imageUrl,
+                              fit: BoxFit.cover,
+                              cacheWidth: context.cachePx(220),
+                              errorBuilder: (_, __, ___) => _placeholder(),
+                            )
+                            : _placeholder(),
                   ),
                 ),
               ),

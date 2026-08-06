@@ -3,6 +3,7 @@ import 'package:gap/gap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spotACrack/providers/searchbar_provider.dart';
+import 'package:spotACrack/utils/responsive.dart';
 
 class HorizontalAlbumScroller extends ConsumerWidget {
   final List<Album> albums;
@@ -30,7 +31,9 @@ class HorizontalAlbumScroller extends ConsumerWidget {
                 albumName: albums[i].name,
                 artistName: albums[i].artist,
                 onTap: () {
-                  ref.read(searchStateProvider.notifier).setKeyboardVisible(false);
+                  ref
+                      .read(searchStateProvider.notifier)
+                      .setKeyboardVisible(false);
                   if (onAlbumTap != null) {
                     onAlbumTap!(albums[i]);
                     return;
@@ -40,7 +43,8 @@ class HorizontalAlbumScroller extends ConsumerWidget {
                     pathParameters: {'albumId': albums[i].id},
                     queryParameters: {
                       if (albums[i].name.isNotEmpty) 'name': albums[i].name,
-                      if (albums[i].imageUri.isNotEmpty) 'image': albums[i].imageUri,
+                      if (albums[i].imageUri.isNotEmpty)
+                        'image': albums[i].imageUri,
                     },
                   );
                 },
@@ -85,12 +89,17 @@ class AlbumItem extends StatelessWidget {
                 width: 150,
                 height: 150,
                 fit: BoxFit.cover,
+                cacheWidth: context.cachePx(150),
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     width: 150,
                     height: 150,
                     color: Colors.grey[800],
-                    child: const Icon(Icons.music_note, size: 40, color: Colors.white54),
+                    child: const Icon(
+                      Icons.music_note,
+                      size: 40,
+                      color: Colors.white54,
+                    ),
                   );
                 },
               ),
@@ -98,7 +107,11 @@ class AlbumItem extends StatelessWidget {
             const Gap(8),
             Text(
               albumName,
-              style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

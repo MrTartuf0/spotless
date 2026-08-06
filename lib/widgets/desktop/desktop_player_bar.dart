@@ -6,7 +6,8 @@ import 'package:spotACrack/providers/audio_player/audio_player_state.dart';
 import 'package:spotACrack/providers/ui_provider.dart';
 import 'package:spotACrack/utils/responsive.dart';
 import 'package:spotACrack/widgets/artist_link.dart';
-import 'package:spotACrack/widgets/sheet_player.dart';
+import 'package:spotACrack/widgets/desktop/now_playing.dart';
+import 'package:spotACrack/widgets/lyrics_view.dart';
 import 'package:spotACrack/widgets/up_next_sheet.dart';
 import 'package:spotACrack/widgets/volume_control.dart';
 
@@ -74,26 +75,20 @@ class _NowPlaying extends ConsumerWidget {
           message: 'Open player',
           child: InkWell(
             borderRadius: BorderRadius.circular(4),
-            onTap: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              useSafeArea: true,
-              backgroundColor: Colors.transparent,
-              barrierColor: state.dominantColor.withValues(alpha: 0.5),
-              constraints: const BoxConstraints(maxWidth: 560),
-              builder: (_) => const SheetPlayer(),
-            ),
+            onTap: () => DesktopNowPlaying.open(context),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: hasImage
-                  ? Image.network(
-                      state.currentTrackImage,
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _artPlaceholder(),
-                    )
-                  : _artPlaceholder(),
+              child:
+                  hasImage
+                      ? Image.network(
+                        state.currentTrackImage,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        cacheWidth: context.cachePx(56),
+                        errorBuilder: (_, __, ___) => _artPlaceholder(),
+                      )
+                      : _artPlaceholder(),
             ),
           ),
         ),
@@ -131,7 +126,8 @@ class _NowPlaying extends ConsumerWidget {
         _IconAction(
           asset: state.isLiked ? 'fill_heart' : 'empty_heart',
           tooltip: state.isLiked ? 'Remove from liked' : 'Add to liked',
-          color: state.isLiked ? const Color(0xff1BD760) : const Color(0x8affffff),
+          color:
+              state.isLiked ? const Color(0xff1BD760) : const Color(0x8affffff),
           onTap: () => ref.read(audioPlayerProvider.notifier).toggleLike(),
           size: 18,
         ),
@@ -166,9 +162,10 @@ class _Transport extends ConsumerWidget {
             _IconAction(
               asset: 'shuffle',
               tooltip: 'Shuffle',
-              color: state.isShuffled
-                  ? const Color(0xff1BD760)
-                  : const Color(0x8affffff),
+              color:
+                  state.isShuffled
+                      ? const Color(0xff1BD760)
+                      : const Color(0x8affffff),
               onTap: enabled ? notifier.toggleShuffle : null,
             ),
             const SizedBox(width: 18),
@@ -197,9 +194,10 @@ class _Transport extends ConsumerWidget {
                 2 => 'Repeat one',
                 _ => 'Repeat',
               },
-              color: state.repeatMode > 0
-                  ? const Color(0xff1BD760)
-                  : const Color(0x8affffff),
+              color:
+                  state.repeatMode > 0
+                      ? const Color(0xff1BD760)
+                      : const Color(0x8affffff),
               onTap: enabled ? notifier.toggleRepeat : null,
             ),
           ],
@@ -224,9 +222,10 @@ class _PlayButton extends ConsumerWidget {
       message: state.isPlaying ? 'Pause (Space)' : 'Play (Space)',
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: enabled
-            ? () => ref.read(audioPlayerProvider.notifier).togglePlayPause()
-            : null,
+        onTap:
+            enabled
+                ? () => ref.read(audioPlayerProvider.notifier).togglePlayPause()
+                : null,
         child: Container(
           width: 36,
           height: 36,
@@ -234,19 +233,20 @@ class _PlayButton extends ConsumerWidget {
             color: enabled ? Colors.white : const Color(0x33FFFFFF),
             shape: BoxShape.circle,
           ),
-          child: state.isLoading
-              ? const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+          child:
+              state.isLoading
+                  ? const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                    ),
+                  )
+                  : Icon(
+                    state.isPlaying ? Icons.pause : Icons.play_arrow,
+                    color: Colors.black,
+                    size: 22,
                   ),
-                )
-              : Icon(
-                  state.isPlaying ? Icons.pause : Icons.play_arrow,
-                  color: Colors.black,
-                  size: 22,
-                ),
         ),
       ),
     );
@@ -276,17 +276,19 @@ class _SeekBarState extends ConsumerState<_SeekBar> {
 
     final total = state.totalDuration.inSeconds.toDouble();
     final hasDuration = total > 0;
-    final position = _dragValue ??
-        state.currentPosition.inSeconds.toDouble().clamp(0, hasDuration ? total : 0);
+    final position =
+        _dragValue ??
+        state.currentPosition.inSeconds.toDouble().clamp(
+          0,
+          hasDuration ? total : 0,
+        );
 
     return Row(
       children: [
         SizedBox(
           width: 42,
           child: Text(
-            notifier.formatTime(
-              Duration(seconds: position.round()),
-            ),
+            notifier.formatTime(Duration(seconds: position.round())),
             textAlign: TextAlign.right,
             style: const TextStyle(color: Color(0xaaffffff), fontSize: 11),
           ),
@@ -304,15 +306,17 @@ class _SeekBarState extends ConsumerState<_SeekBar> {
             child: Slider(
               value: hasDuration ? position.toDouble() : 0,
               max: hasDuration ? total : 1,
-              onChanged: hasDuration
-                  ? (value) => setState(() => _dragValue = value)
-                  : null,
-              onChangeEnd: hasDuration
-                  ? (value) {
-                      notifier.seekTo(Duration(seconds: value.round()));
-                      setState(() => _dragValue = null);
-                    }
-                  : null,
+              onChanged:
+                  hasDuration
+                      ? (value) => setState(() => _dragValue = value)
+                      : null,
+              onChangeEnd:
+                  hasDuration
+                      ? (value) {
+                        notifier.seekTo(Duration(seconds: value.round()));
+                        setState(() => _dragValue = null);
+                      }
+                      : null,
             ),
           ),
         ),
@@ -341,6 +345,23 @@ class _Extras extends ConsumerWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         IconButton(
+          tooltip: 'Lyrics',
+          onPressed:
+              state.currentTrackId.isEmpty
+                  ? null
+                  : () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    useSafeArea: true,
+                    backgroundColor: Colors.transparent,
+                    barrierColor: Colors.black.withValues(alpha: 0.5),
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    builder: (_) => const LyricsSheet(),
+                  ),
+          icon: const Icon(Icons.lyrics_outlined, size: 20),
+          color: const Color(0xB3FFFFFF),
+        ),
+        IconButton(
           tooltip: queueOpen ? 'Hide queue' : 'Show queue',
           onPressed: () {
             // Narrow windows have no room to dock the panel, so they get the
@@ -361,7 +382,8 @@ class _Extras extends ConsumerWidget {
           icon: Icon(
             Icons.queue_music,
             size: 20,
-            color: queueOpen ? const Color(0xff1BD760) : const Color(0xB3FFFFFF),
+            color:
+                queueOpen ? const Color(0xff1BD760) : const Color(0xB3FFFFFF),
           ),
         ),
         // The slider needs room; below that width the mute button alone still

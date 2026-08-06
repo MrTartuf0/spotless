@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:spotACrack/providers/audio_player/audio_player_provider.dart';
 import 'package:spotACrack/providers/searchbar_provider.dart';
 import 'package:spotACrack/providers/ui_provider.dart';
 import 'package:spotACrack/screens/home_feed.dart';
@@ -13,6 +11,7 @@ import 'package:spotACrack/widgets/bottom_player.dart';
 import 'package:spotACrack/widgets/desktop/desktop_player_bar.dart';
 import 'package:spotACrack/widgets/desktop/queue_panel.dart';
 import 'package:spotACrack/widgets/desktop/side_nav.dart';
+import 'package:spotACrack/widgets/playback_shortcuts.dart';
 
 /// App frame. Wraps every route, so the navigation and the player stay put
 /// while artist and album pages are pushed on top of the tabs.
@@ -42,10 +41,11 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return _PlaybackShortcuts(
-      child: context.isWide
-          ? _DesktopFrame(child: child)
-          : _MobileFrame(child: child),
+    return PlaybackShortcuts(
+      child:
+          context.isWide
+              ? _DesktopFrame(child: child)
+              : _MobileFrame(child: child),
     );
   }
 }
@@ -120,106 +120,33 @@ class _MobileFrame extends ConsumerWidget {
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
         alignment: Alignment.topCenter,
-        child: keyboardVisible
-            ? const SizedBox(width: double.infinity)
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  // Desktop windows are laid out at 1x1 for their first frame,
-                  // where even the nav bar alone overflows. Below that, drop
-                  // the player first and then the bar itself.
-                  final room = constraints.maxHeight;
-                  if (room < 72) return const SizedBox(width: double.infinity);
-                  final roomForPlayer = room > 140;
+        child:
+            keyboardVisible
+                ? const SizedBox(width: double.infinity)
+                : LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Desktop windows are laid out at 1x1 for their first frame,
+                    // where even the nav bar alone overflows. Below that, drop
+                    // the player first and then the bar itself.
+                    final room = constraints.maxHeight;
+                    if (room < 72)
+                      return const SizedBox(width: double.infinity);
+                    final roomForPlayer = room > 140;
 
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (roomForPlayer) const BottomPlayer(),
-                      _NavBar(
-                        index: index,
-                        onTap: (i) => AppShell.selectTab(context, ref, i),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (roomForPlayer) const BottomPlayer(),
+                        _NavBar(
+                          index: index,
+                          onTap: (i) => AppShell.selectTab(context, ref, i),
+                        ),
+                      ],
+                    );
+                  },
+                ),
       ),
     );
-  }
-}
-
-/// Space toggles playback, arrows scrub, Ctrl/Cmd + arrows change track.
-///
-/// Skipped while a text field has focus so typing a space in the search box
-/// doesn't pause the music.
-class _PlaybackShortcuts extends ConsumerWidget {
-  final Widget child;
-
-  const _PlaybackShortcuts({required this.child});
-
-  static bool _isTyping() {
-    final context = FocusManager.instance.primaryFocus?.context;
-    if (context == null) return false;
-    return context.widget is EditableText ||
-        context.findAncestorWidgetOfExactType<EditableText>() != null;
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    void nudge(int seconds) {
-      final state = ref.read(audioPlayerProvider);
-      if (state.currentTrackId.isEmpty) return;
-      final target = state.currentPosition + Duration(seconds: seconds);
-      ref.read(audioPlayerProvider.notifier).seekTo(
-            target < Duration.zero
-                ? Duration.zero
-                : (target > state.totalDuration && state.totalDuration > Duration.zero
-                    ? state.totalDuration
-                    : target),
-          );
-    }
-
-    final notifier = ref.read(audioPlayerProvider.notifier);
-
-    void nudgeVolume(double delta) {
-      notifier.setVolume(ref.read(audioPlayerProvider).volume + delta);
-    }
-
-    KeyEventResult handleKey(FocusNode node, KeyEvent event) {
-      if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-        return KeyEventResult.ignored;
-      }
-
-      // Declining the event is the whole point: a key the framework reports as
-      // handled is never forwarded to the platform's text input, so claiming
-      // space here would stop it being typed into the search box.
-      if (_isTyping()) return KeyEventResult.ignored;
-
-      final keyboard = HardwareKeyboard.instance;
-      final skipTrack = keyboard.isControlPressed || keyboard.isMetaPressed;
-
-      switch (event.logicalKey) {
-        case LogicalKeyboardKey.space:
-          notifier.togglePlayPause();
-        case LogicalKeyboardKey.arrowRight:
-          skipTrack ? notifier.playNextTrack() : nudge(10);
-        case LogicalKeyboardKey.arrowLeft:
-          skipTrack ? notifier.playPreviousTrack() : nudge(-10);
-        case LogicalKeyboardKey.arrowUp:
-          nudgeVolume(0.05);
-        case LogicalKeyboardKey.arrowDown:
-          nudgeVolume(-0.05);
-        case LogicalKeyboardKey.keyM:
-          notifier.toggleMute();
-        default:
-          return KeyEventResult.ignored;
-      }
-      return KeyEventResult.handled;
-    }
-
-    // Sliders, buttons and text fields all see their keys first; this only
-    // gets what they leave alone.
-    return Focus(autofocus: true, onKeyEvent: handleKey, child: child);
   }
 }
 
@@ -303,11 +230,7 @@ class _NavItem extends StatelessWidget {
               scale: selected ? 1.08 : 1,
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
-              child: Icon(
-                selected ? activeIcon : icon,
-                color: color,
-                size: 25,
-              ),
+              child: Icon(selected ? activeIcon : icon, color: color, size: 25),
             ),
             const SizedBox(height: 3),
             // Never wrap: mid-resize the bar is laid out at a fraction of a

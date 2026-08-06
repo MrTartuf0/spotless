@@ -100,42 +100,45 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         else
           switch (_filter) {
             _LibraryFilter.albums => SliverList.builder(
-                itemCount: albums.length,
-                itemBuilder: (context, i) {
-                  final RecentAlbum album = albums[i];
-                  return _LibraryTile(
-                    imageUrl: album.imageUrl,
-                    title: album.name,
-                    subtitle: 'Album · ${album.artist}',
-                    onTap: () => context.pushNamed(
-                      'album',
-                      pathParameters: {'albumId': album.id},
-                      queryParameters: {
-                        if (album.name.isNotEmpty) 'name': album.name,
-                        if (album.imageUrl.isNotEmpty) 'image': album.imageUrl,
-                      },
-                    ),
-                  );
-                },
-              ),
+              itemCount: albums.length,
+              itemBuilder: (context, i) {
+                final RecentAlbum album = albums[i];
+                return _LibraryTile(
+                  imageUrl: album.imageUrl,
+                  title: album.name,
+                  subtitle: 'Album · ${album.artist}',
+                  onTap:
+                      () => context.pushNamed(
+                        'album',
+                        pathParameters: {'albumId': album.id},
+                        queryParameters: {
+                          if (album.name.isNotEmpty) 'name': album.name,
+                          if (album.imageUrl.isNotEmpty)
+                            'image': album.imageUrl,
+                        },
+                      ),
+                );
+              },
+            ),
             _LibraryFilter.artists => SliverList.builder(
-                itemCount: artists.length,
-                itemBuilder: (context, i) => _ArtistTile(artist: artists[i]),
-              ),
+              itemCount: artists.length,
+              itemBuilder: (context, i) => _ArtistTile(artist: artists[i]),
+            ),
             _LibraryFilter.songs => SliverList.builder(
-                itemCount: tracks.length,
-                itemBuilder: (context, i) {
-                  final RecentTrack track = tracks[i];
-                  return _LibraryTile(
-                    imageUrl: track.imageUrl,
-                    title: track.title,
-                    subtitle: 'Song · ${track.artist}',
-                    onTap: () => ref
-                        .read(audioPlayerProvider.notifier)
-                        .loadTrack(track.id),
-                  );
-                },
-              ),
+              itemCount: tracks.length,
+              itemBuilder: (context, i) {
+                final RecentTrack track = tracks[i];
+                return _LibraryTile(
+                  imageUrl: track.imageUrl,
+                  title: track.title,
+                  subtitle: 'Song · ${track.artist}',
+                  onTap:
+                      () => ref
+                          .read(audioPlayerProvider.notifier)
+                          .loadTrack(track.id),
+                );
+              },
+            ),
           },
 
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -157,9 +160,10 @@ class _ArtistTile extends ConsumerWidget {
 
     if (image.isEmpty && artist.id.isNotEmpty) {
       final profile = ref.watch(artistProfileProvider(artist.id)).valueOrNull;
-      final resolved = profile?.thumbnailUrl.isNotEmpty == true
-          ? profile!.thumbnailUrl
-          : (profile?.imageUrl ?? '');
+      final resolved =
+          profile?.thumbnailUrl.isNotEmpty == true
+              ? profile!.thumbnailUrl
+              : (profile?.imageUrl ?? '');
       if (resolved.isNotEmpty) {
         image = resolved;
         ref.read(historyServiceProvider).updateArtistImage(artist.id, resolved);
@@ -171,11 +175,12 @@ class _ArtistTile extends ConsumerWidget {
       title: artist.name,
       subtitle: 'Artist',
       circular: true,
-      onTap: () => context.push(
-        '/artist/${artist.id}'
-        '?name=${Uri.encodeComponent(artist.name)}'
-        '&image=${Uri.encodeComponent(image)}',
-      ),
+      onTap:
+          () => context.push(
+            '/artist/${artist.id}'
+            '?name=${Uri.encodeComponent(artist.name)}'
+            '&image=${Uri.encodeComponent(image)}',
+          ),
     );
   }
 }
@@ -201,9 +206,10 @@ class _FilterChip extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
-            color: selected
-                ? const Color(0xff1BD760)
-                : Colors.white.withValues(alpha: 0.08),
+            color:
+                selected
+                    ? const Color(0xff1BD760)
+                    : Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -266,15 +272,17 @@ class _LibraryTileState extends State<_LibraryTile> {
             children: [
               ClipRRect(
                 borderRadius: radius,
-                child: widget.imageUrl.startsWith('http')
-                    ? Image.network(
-                        widget.imageUrl,
-                        height: 52,
-                        width: 52,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholder(),
-                      )
-                    : _placeholder(),
+                child:
+                    widget.imageUrl.startsWith('http')
+                        ? Image.network(
+                          widget.imageUrl,
+                          height: 52,
+                          width: 52,
+                          fit: BoxFit.cover,
+                          cacheWidth: context.cachePx(52),
+                          errorBuilder: (_, __, ___) => _placeholder(),
+                        )
+                        : _placeholder(),
               ),
               const SizedBox(width: 12),
               Expanded(

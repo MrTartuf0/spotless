@@ -6,6 +6,7 @@ import 'package:spotACrack/providers/history_provider.dart';
 import 'package:spotACrack/providers/ui_provider.dart';
 import 'package:spotACrack/screens/app_shell.dart';
 import 'package:spotACrack/services/history_service.dart';
+import 'package:spotACrack/utils/responsive.dart';
 
 /// Desktop navigation: destinations up top, recently played underneath.
 ///
@@ -152,8 +153,8 @@ class _Recents extends ConsumerWidget {
       itemBuilder: (context, i) {
         final track = tracks[i];
         return InkWell(
-          onTap: () =>
-              ref.read(audioPlayerProvider.notifier).loadTrack(track.id),
+          onTap:
+              () => ref.read(audioPlayerProvider.notifier).loadTrack(track.id),
           borderRadius: BorderRadius.circular(6),
           hoverColor: Colors.white.withValues(alpha: 0.07),
           child: Padding(
@@ -162,15 +163,17 @@ class _Recents extends ConsumerWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                  child: track.imageUrl.startsWith('http')
-                      ? Image.network(
-                          track.imageUrl,
-                          width: 36,
-                          height: 36,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _thumbPlaceholder(),
-                        )
-                      : _thumbPlaceholder(),
+                  child:
+                      track.imageUrl.startsWith('http')
+                          ? Image.network(
+                            track.imageUrl,
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.cover,
+                            cacheWidth: context.cachePx(36),
+                            errorBuilder: (_, __, ___) => _thumbPlaceholder(),
+                          )
+                          : _thumbPlaceholder(),
                 ),
                 const SizedBox(width: 10),
                 Expanded(

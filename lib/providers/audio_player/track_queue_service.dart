@@ -74,6 +74,38 @@ class TrackQueueService {
     return nextTrackInfo;
   }
 
+  /// Resolves the autoplay station for [seedTrackId] into ready-to-display
+  /// queue rows (`id`, `name`, `artist`, `imageUrl`), in play order.
+  ///
+  /// This is the *same* list the Up-next UI shows, so seeding the queue from it
+  /// guarantees the track that plays next is the one the user saw at the top.
+  /// [exclude] keeps already-played tracks out of the station and the result.
+  Future<List<Map<String, dynamic>>> fetchStationQueue(
+    String seedTrackId, {
+    List<String> exclude = const [],
+    int limit = 15,
+  }) async {
+    final tracks = await _trackRepository.getRecommendedTracks(
+      seedTrackId,
+      limit: limit,
+      recent: exclude,
+    );
+
+    final skip = {seedTrackId, ...exclude};
+    return tracks
+        .where((t) => !skip.contains(t['id'] as String? ?? ''))
+        .map(
+          (t) => {
+            'id': t['id'] as String? ?? '',
+            'name': t['name'] as String? ?? '',
+            'artist': t['artist'] as String? ?? '',
+            'imageUrl': t['imageUrl'] as String? ?? '',
+          },
+        )
+        .where((t) => (t['id'] as String).isNotEmpty)
+        .toList();
+  }
+
   // Get full track data for a track ID
   Future<Map<String, dynamic>> getTrackData(String trackId) async {
     // Get track data

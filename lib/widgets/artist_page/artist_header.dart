@@ -100,7 +100,10 @@ class ArtistHeader extends StatelessWidget {
                   _subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, color: Color(0xCCFFFFFF)),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xCCFFFFFF),
+                  ),
                 ),
               ],
               const SizedBox(height: 20),
@@ -197,21 +200,23 @@ class _Artwork extends StatelessWidget {
         ],
       ),
       child: ClipOval(
-        child: imageUrl.startsWith('http')
-            ? Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _placeholder(),
-                frameBuilder: (context, child, frame, wasSync) {
-                  if (wasSync) return child;
-                  return AnimatedOpacity(
-                    opacity: frame == null ? 0 : 1,
-                    duration: const Duration(milliseconds: 250),
-                    child: frame == null ? _placeholder() : child,
-                  );
-                },
-              )
-            : _placeholder(),
+        child:
+            imageUrl.startsWith('http')
+                ? Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  cacheWidth: context.cachePx(size),
+                  errorBuilder: (_, __, ___) => _placeholder(),
+                  frameBuilder: (context, child, frame, wasSync) {
+                    if (wasSync) return child;
+                    return AnimatedOpacity(
+                      opacity: frame == null ? 0 : 1,
+                      duration: const Duration(milliseconds: 250),
+                      child: frame == null ? _placeholder() : child,
+                    );
+                  },
+                )
+                : _placeholder(),
       ),
     );
   }
@@ -284,7 +289,8 @@ class _PlayButtonState extends State<_PlayButton> {
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: enabled ? const Color(0xff1BD760) : const Color(0x331BD760),
+              color:
+                  enabled ? const Color(0xff1BD760) : const Color(0x331BD760),
             ),
             child: const Icon(Icons.play_arrow, size: 32, color: Colors.black),
           ),

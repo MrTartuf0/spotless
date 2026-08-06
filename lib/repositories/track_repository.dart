@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:spotACrack/models/album.dart';
+import 'package:spotACrack/models/lyrics.dart';
 
 class TrackRepository {
   final Dio _dio;
@@ -144,6 +145,22 @@ class TrackRepository {
     } catch (e) {
       print('Error fetching recommended tracks: $e');
       return const [];
+    }
+  }
+
+  /// Time-synced lyrics for a track. A track with no lyrics comes back as
+  /// [Lyrics.none] (a normal state, not an error), as does any failure — the
+  /// lyrics view is non-essential and should never surface an error.
+  Future<Lyrics> getLyrics(String trackId) async {
+    try {
+      final response = await _dio.get('$_baseUrl/api/lyrics/$trackId');
+      if (response.statusCode == 200 && response.data is Map) {
+        return Lyrics.fromJson((response.data as Map).cast<String, dynamic>());
+      }
+      return Lyrics.none(trackId);
+    } catch (e) {
+      print('Error fetching lyrics: $e');
+      return Lyrics.none(trackId);
     }
   }
 

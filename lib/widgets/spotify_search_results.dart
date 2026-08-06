@@ -168,7 +168,8 @@ class _TopResultCardState extends ConsumerState<_TopResultCard> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             decoration: BoxDecoration(
-              color: _hovered ? const Color(0xFF2A2A2A) : const Color(0xff1e1e1e),
+              color:
+                  _hovered ? const Color(0xFF2A2A2A) : const Color(0xff1e1e1e),
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.all(16),
@@ -177,15 +178,18 @@ class _TopResultCardState extends ConsumerState<_TopResultCard> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: image.isNotEmpty
-                      ? Image.network(
-                          image,
-                          width: 96,
-                          height: 96,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _topResultPlaceholder(),
-                        )
-                      : _topResultPlaceholder(),
+                  child:
+                      image.isNotEmpty
+                          ? Image.network(
+                            image,
+                            width: 96,
+                            height: 96,
+                            fit: BoxFit.cover,
+                            cacheWidth: context.cachePx(96),
+                            errorBuilder:
+                                (_, __, ___) => _topResultPlaceholder(),
+                          )
+                          : _topResultPlaceholder(),
                 ),
                 const Gap(12),
                 Text(
